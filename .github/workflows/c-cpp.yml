@@ -1,0 +1,23 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    # Run configure with high verbosity and valgrind on xconfig
+    - name: configure
+      run: |
+        mkdir build
+        cd build
+        ../configure --cripple-atlas-performance -v 2
+    
