@@ -63,7 +63,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
    uint part;
    char *res;
    *IMPL = *ARCH = *VAR = *REV = part = -1;
-   res = atlsys_1L(NULL, "fgrep 'CPU part' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU part' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -74,7 +74,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
             part = i;
       free(res);
    }
-   res = atlsys_1L(NULL, "fgrep 'CPU variant' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU variant' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -85,7 +85,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
             *VAR = i;
       free(res);
    }
-   res = atlsys_1L(NULL, "fgrep 'CPU implement' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU implement' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -97,7 +97,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
       free(res);
    }
 
-   res = atlsys_1L(NULL, "fgrep 'CPU architect' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU architect' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -108,7 +108,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
             *ARCH = i;
       free(res);
    }
-   res = atlsys_1L(NULL, "fgrep 'CPU revision' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU revision' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -132,7 +132,7 @@ enum MACHTYPE ProbeArch()
    switch(fam)
    {
    case AFPPC: /* don't know */
-      res = atlsys_1L(NULL, "/usr/sbin/prtconf | fgrep 'Processor Type'", 0, 0);
+      res = atlsys_1L(NULL, "/usr/sbin/prtconf | grep -F 'Processor Type'", 0, 0);
       if (res)
       {
          if (strstr(res, "PowerPC_POWER5"))
@@ -158,7 +158,7 @@ int ProbeNCPU()
    int ncpu = 0;
    char *res;
 
-   res = atlsys_1L(NULL, "/usr/sbin/prtconf | fgrep 'Number Of Processors'",
+   res = atlsys_1L(NULL, "/usr/sbin/prtconf | grep -F 'Number Of Processors'",
                    0, 0);
    if (res)
    {
@@ -187,7 +187,7 @@ int ProbePointerBits(int *sure)
       return(64);
    }
 
-   res = atlsys_1L(NULL, "/usr/sbin/prtconf | fgrep 'Kernel Type'", 0, 0);
+   res = atlsys_1L(NULL, "/usr/sbin/prtconf | grep -F 'Kernel Type'", 0, 0);
    if (res)
    {
       if (GetLastInt(res) == 64)
@@ -230,7 +230,7 @@ int ProbeMhz()
 {
    int mhz=0;
    char *res;
-   res = atlsys_1L(NULL, "/usr/sbin/prtconf | fgrep 'Processor Clock Speed'",
+   res = atlsys_1L(NULL, "/usr/sbin/prtconf | grep -F 'Processor Clock Speed'",
                    0, 0);
    if (res)
    {

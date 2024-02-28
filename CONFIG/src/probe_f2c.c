@@ -2,7 +2,7 @@
 
 int probe_name(char *targarg, int verb, char **usrcomps)
 {
-   char *frm = "make IRunF2C_name %s F77=\"%s\" F77FLAGS=\"%s\" CC=\"%s\" CCFLAGS=\"%s\" | fgrep 'F2C name'";
+   char *frm = "make IRunF2C_name %s F77=\"%s\" F77FLAGS=\"%s\" CC=\"%s\" CCFLAGS=\"%s\" | grep -F 'F2C name'";
    char *cmnd, *res;
    enum F2CNAME f2cname = f2c_NamErr;
    int i;
@@ -39,7 +39,7 @@ int probe_name(char *targarg, int verb, char **usrcomps)
 
 int probe_int(char *targarg, int verb, char **usrcomps, int f2cname)
 {
-   char *frm="make IRunF2C_int %s F77=\"%s\" F77FLAGS=\"%s\" CC=\"%s\" CCFLAGS=\"-D%s %s\" | fgrep 'F2C int'";
+   char *frm="make IRunF2C_int %s F77=\"%s\" F77FLAGS=\"%s\" CC=\"%s\" CCFLAGS=\"-D%s %s\" | grep -F 'F2C int'";
    char *cmnd, *res;
    enum F2CINT f2c_int = f2c_IntErr;
    int i;
@@ -75,7 +75,7 @@ int probe_int(char *targarg, int verb, char **usrcomps, int f2cname)
 
 int probe_str(char *targarg, int verb, char **usrcomps, int f2cname, int f2cint)
 {
-   char *frm = "make IRunF2C_str %s F77=\"%s\" F77FLAGS=\"%s\" CC=\"%s\" CCFLAGS=\"-D%s -D%s -DString%s %s\" | fgrep 'F2C string'";
+   char *frm = "make IRunF2C_str %s F77=\"%s\" F77FLAGS=\"%s\" CC=\"%s\" CCFLAGS=\"-D%s -D%s -DString%s %s\" | grep -F 'F2C string'";
    enum F2CSTRING f2cstr = f2c_StrErr;
    int i, len;
 

@@ -31,7 +31,7 @@ does not point the user at a specific log file, do an ls -l, and examine
 the newest file aside from ERROR.LOG & SUMMARY.LOG.
 
 Under Unix, you may want to do
-   fgrep -i error *
+   grep -F -i error *
 in your INSTALL_LOG directory to look for problems (though some errors occur
 naturally in an ATLAS install, since ATLAS tests things that are only legal
 on some platforms).

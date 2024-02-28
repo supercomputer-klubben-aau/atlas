@@ -7,11 +7,11 @@ int RunASMProbe(char *targ, int verb, enum OSTYPE OS, char *asmnam)
    int i = 0;
    if (targ)
    {
-      frm = "make IRun_%s atlrun=atlas_runX args=\"-v %d\" MYFLAGS=\"-DATL_OS_%s\" targ=%s 2> /dev/null | fgrep SUCCESS";
+      frm = "make IRun_%s atlrun=atlas_runX args=\"-v %d\" MYFLAGS=\"-DATL_OS_%s\" targ=%s 2> /dev/null | grep -F SUCCESS";
       i = strlen(targ);
    }
    else
-      frm = "make IRun_%s args=\"-v %d\" MYFLAGS=\"-DATL_OS_%s\" 2> /dev/null | fgrep SUCCESS";
+      frm = "make IRun_%s args=\"-v %d\" MYFLAGS=\"-DATL_OS_%s\" 2> /dev/null | grep -F SUCCESS";
 
    i += strlen(frm) + strlen(asmnam) + 11 + strlen(osnam[OS]) + 1;
    cmnd = malloc(i*sizeof(char));

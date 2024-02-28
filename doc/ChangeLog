@@ -1763,7 +1763,7 @@ ATLAS 3.5.17 released 12/13/03, changes from 3.5.16:
        + same asymptotic GEMM speed due to hand-tuned kernel
    * Workarounds for icc bugs on IA64Itan2:
      - Fixes errors in [d,s]TRSM, [c,z]HER, [c,z]HPR, [c,z]HER2K, [c,z]SYR2K
-     - fgrep code for ATL_IntelIccBugs:
+     - grep -F code for ATL_IntelIccBugs:
        + ATLAS/src/blas/level2/ATL_[hpr,her].c
        + ATLAS/src/blas/level3/kernel/ATL_syrk2_put[L,U].c
        + ATLAS/src/blas/level3/ATL_trsm.c

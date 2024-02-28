@@ -13,7 +13,7 @@ char *GetStrProbe(int verb, char *targarg, char *prb, char *id)
    i = strlen(targarg) + strlen(prb) + strlen(id) + 48;
    ln = malloc(i*sizeof(char));
    assert(ln);
-   sprintf(ln, "make IRun_%s args=\"-v %d %s\" | fgrep '%s='",
+   sprintf(ln, "make IRun_%s args=\"-v %d %s\" | grep -F '%s='",
            prb, verb, targarg, id);
 
    if (verb > 1)
@@ -47,7 +47,7 @@ int GetIntProbe(int verb, char *targarg, char *prb, char *id, int N)
    i = strlen(targarg) + strlen(prb) + strlen(id) + 48;
    ln = malloc(i*sizeof(char));
    assert(ln);
-   sprintf(ln, "make IRun_%s args=\"-v %d %s\" | fgrep '%s='",
+   sprintf(ln, "make IRun_%s args=\"-v %d %s\" | grep -F '%s='",
            prb, verb, targarg, id);
    if (verb > 1)
       printf("cmnd=%s\n", ln);
@@ -78,7 +78,7 @@ int GetIntProbeSure(int verb, char *targarg, char *prb, char *id,
    i = strlen(targarg) + strlen(prb) + strlen(id) + 48;
    ln = malloc(i*sizeof(char));
    assert(ln);
-   sprintf(ln, "make IRun_%s args=\"-v %d %s\" | fgrep '%s='",
+   sprintf(ln, "make IRun_%s args=\"-v %d %s\" | grep -F '%s='",
            prb, verb, targarg, id);
    if (verb > 1)
       printf("cmnd=%s\n", ln);

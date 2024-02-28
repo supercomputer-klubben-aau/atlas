@@ -97,7 +97,7 @@ void GetVers(char *comp, char *vers)
 void GetMakeMacro(char *str, char *val)
 {
    char ln[128];
-   sprintf(ln, "make print_%s | fgrep -v make", str);
+   sprintf(ln, "make print_%s | grep -F -v make", str);
    if (CmndOneLine(ln, val)) strcpy(val, "UNKNOWN");
 }
 void GetInstInfo()

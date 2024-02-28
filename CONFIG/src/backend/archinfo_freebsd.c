@@ -63,7 +63,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
    uint part;
    char *res;
    *IMPL = *ARCH = *VAR = *REV = part = -1;
-   res = atlsys_1L(NULL, "fgrep 'CPU part' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU part' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -74,7 +74,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
             part = i;
       free(res);
    }
-   res = atlsys_1L(NULL, "fgrep 'CPU variant' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU variant' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -85,7 +85,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
             *VAR = i;
       free(res);
    }
-   res = atlsys_1L(NULL, "fgrep 'CPU implement' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU implement' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -97,7 +97,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
       free(res);
    }
 
-   res = atlsys_1L(NULL, "fgrep 'CPU architect' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU architect' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -108,7 +108,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
             *ARCH = i;
       free(res);
    }
-   res = atlsys_1L(NULL, "fgrep 'CPU revision' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU revision' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;

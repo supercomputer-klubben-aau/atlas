@@ -63,7 +63,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
    uint part;
    char *res;
    *IMPL = *ARCH = *VAR = *REV = part = -1;
-   res = atlsys_1L(NULL, "fgrep 'CPU part' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU part' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -74,7 +74,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
             part = i;
       free(res);
    }
-   res = atlsys_1L(NULL, "fgrep 'CPU variant' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU variant' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -85,7 +85,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
             *VAR = i;
       free(res);
    }
-   res = atlsys_1L(NULL, "fgrep 'CPU implement' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU implement' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -97,7 +97,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
       free(res);
    }
 
-   res = atlsys_1L(NULL, "fgrep 'CPU architect' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU architect' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -108,7 +108,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
             *ARCH = i;
       free(res);
    }
-   res = atlsys_1L(NULL, "fgrep 'CPU revision' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU revision' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -132,7 +132,7 @@ enum MACHTYPE ProbeArch()
    switch(fam)
    {
    case AFIA64:
-      res = atlsys_1L(NULL, "hinv -c processor | fgrep 'Itanium'", 0, 0);
+      res = atlsys_1L(NULL, "hinv -c processor | grep -F 'Itanium'", 0, 0);
       if (res)
       {
          if (res[0] != '\0')
@@ -144,7 +144,7 @@ enum MACHTYPE ProbeArch()
       }
       break;
    case AFMIPS:
-      res = atlsys_1L(NULL, "hinv -c processor | fgrep 'CPU'", 0, 0);
+      res = atlsys_1L(NULL, "hinv -c processor | grep -F 'CPU'", 0, 0);
       if (!ierr && res[0] != '\0')
       {
          if (res[0] != '\0')
@@ -165,7 +165,7 @@ int ProbeNCPU()
    char *res;
 
    res = atlsys_1L(NULL,
-                   "hinv -c processor | fgrep Processor | fgrep -v 'CPU:'",
+                   "hinv -c processor | grep -F Processor | grep -F -v 'CPU:'",
                    0, 0);
    if (res)
    {
@@ -226,7 +226,7 @@ int ProbeMhz()
 {
    int mhz=0;
    char *res;
-   res = atlsys_1L(NULL, "hinv -c processor | fgrep MHz", 0, 0);
+   res = atlsys_1L(NULL, "hinv -c processor | grep -F MHz", 0, 0);
    if (res)
    {  /* Itanium's use MHz */
       mhz = GetIntBeforeWord("MHz", res);
@@ -235,7 +235,7 @@ int ProbeMhz()
    }
    if (!mhz)
    {
-      res = atlsys_1L(NULL, "hinv -c processor | fgrep MHZ", 0, 0);
+      res = atlsys_1L(NULL, "hinv -c processor | grep -F MHZ", 0, 0);
       if (res)
       {   /* MIPS uses MHZ */
          mhz = GetIntBeforeWord("MHZ", res);
@@ -245,7 +245,7 @@ int ProbeMhz()
    }
    if (!mhz)
    {
-      res = atlsys_1L(NULL, "hinv -c processor | fgrep GHz", 0, 0);
+      res = atlsys_1L(NULL, "hinv -c processor | grep -F GHz", 0, 0);
       if (res)
       {  /* Don't think MIPS will ever get here, nobody pres uses GHz */
          mhz = GetIntBeforeWord("GHz", res);

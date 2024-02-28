@@ -20,7 +20,7 @@ void GenMake(ATL_cpnode_t *cb, char *path)
    fnam = malloc(len);
    assert(fnam);
    sprintf(fnam, "%s/Makefile", path);
-   assert(!Sys2File("fgrep 'BLDdir =' Make.inc", fnam));
+   assert(!Sys2File("grep -F 'BLDdir =' Make.inc", fnam));
    fp = fopen(fnam, "a");
    assert(fp);
    free(fnam);
