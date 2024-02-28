@@ -246,14 +246,14 @@ static FILE *atlsys(char *targ, char *cmnd, int verb, int IgnoreErr)
       i = strlen(targ) + strlen(cmnd) + strlen(tnam) + 24;
       sp = malloc(i*sizeof(char));
       assert(sp);
-      sprintf(sp, "ssh %s \"%s\" > %s %s \n", targ, cmnd, tnam, redir);
+      sprintf(sp, "ssh %s \"%s\" > %s %s", targ, cmnd, tnam, redir);
    }
    else
    {
       i = strlen(cmnd) + strlen(tnam) + 16;
       sp = malloc(i*sizeof(char));
       assert(sp);
-      sprintf(sp, "%s > %s %s\n", cmnd, tnam, redir);
+      sprintf(sp, "%s > %s %s", cmnd, tnam, redir);
    }
    i = system(sp);
    if (i && verb)
