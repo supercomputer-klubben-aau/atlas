@@ -74,6 +74,7 @@ rdbitwidth=0
 dylib=0
 accel=0  # 1: TI_C66_BM, 2: Xeon Phi
 irtarg=0
+valgrind=
 rtarg=
 for arg in "$@"
 do
@@ -201,6 +202,12 @@ do
    if test "$flag" != "$arg"
    then
       pass="$pass -Si cripple-perf 1"
+      handled=1
+   fi
+   flag=`echo "$arg" | sed -e "s/--valgrind//"`
+   if test "$flag" != "$arg"
+   then
+      valgrind=valgrind
       handled=1
    fi
    flag=`echo "$arg" | sed -e "s/--force-tids=//"`
@@ -482,13 +489,13 @@ cp "$path"/CONFIG/src/atlcomp.txt .
 # Build and run xconfig
 #
 make -f Makefile xconfig
-echo ./xconfig -d s "$topdir" -d b "$blddir" "$pass"
+echo $valgrind ./xconfig -d s "$topdir" -d b "$blddir" "$pass"
 #./xconfig -d s "$topdir" -d b "$blddir" `echo "$pass"`
 if test $fulllapack -eq 0
 then
-   echo ./xconfig -d s "$topdir" -d b "$blddir" "$pass" | /bin/sh
+   echo $valgrind ./xconfig -d s "$topdir" -d b "$blddir" "$pass" | /bin/sh
 else
-   echo ./xconfig -d s "$topdir" -d b "$blddir" "$pass" \
+   echo $valgrind ./xconfig -d s "$topdir" -d b "$blddir" "$pass" \
         -D c -DATL_FULL_LAPACK | /bin/sh
 fi
 ierr=$?

@@ -14,10 +14,13 @@ jobs:
     steps:
     - uses: actions/checkout@v3
 
+    - name: Install valgrind
+      run: sudo apt-get install -y valgrind
+
     # Run configure with high verbosity and valgrind on xconfig
     - name: configure
       run: |
         mkdir build
         cd build
-        ../configure --cripple-atlas-performance -v 2
+        ../configure --cripple-atlas-performance -v 2 --valgrind
     
