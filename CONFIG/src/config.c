@@ -56,7 +56,6 @@ int GetIntProbe(int verb, char *targarg, char *prb, char *id, int N)
    if (res)
    {
       iret = GetLastInt(res);
-      free(res);
    }
    if (N)
    {
@@ -66,6 +65,7 @@ int GetIntProbe(int verb, char *targarg, char *prb, char *id, int N)
          iret = 0;
       }
    }
+   free(res);
    return(iret);
 }
 
