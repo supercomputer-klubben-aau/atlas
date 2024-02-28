@@ -1,0 +1,41 @@
+#
+# In this file, any line beginning with a '#' is ignored, but the # must be in
+# column 0.  All multiple whitespace is reduced to one space (i.e. used only
+# to distinguish where words begin/end).  Lines may be extended by putting '\'
+# as the *last* character of line.
+#
+# This file indexes the user-supplied copy routines for the storage schemes
+# indexed in storage.ids, and has the following format (non-mandatory
+# keys show the default in []):
+# ID=<id> STGID=<stgid> CBLK=[0,1] TOBLK=[0,1] TRANS=[0,1] CONJ=[0,1] \
+#    MU=<mu> NU=<nu> VLEN=<vlen> ROUT='rt' AUTH='name' \
+#    COMP='gcc' CFLAGS='flags' ALPHA=lst BETA=lst
+# ID: Mandatory.  Unique (in this file only) int >= 0.
+# STGID: Mandatory.  Number >0 matching and ID in storage.idx.  Predefined:
+#    0: access major, scope TOBLKCBLK,VLEN,KVEC to determine what type
+#    X: user defined type
+# TOBLK: Mandatory.
+#         0: copies from STGID block storage to column-major
+#         1: copies from column-major to STGID block storage
+# MU/NU: [0] unrolling along 1st & 2nd dim (MU=KU for A/B!);
+# TRANS: [0] Needed only for A/B storage, indicates transpose being done:
+#    0: cols of matrix stored contiguously, rows strided (col-major)
+#    1: rows of matrix stored contiguously, cols strided (row-major)
+# ALPHA: mandatory.  What alpha cases handled by kern.  For A/B, full list
+#        is 1,N,X, for C it is 0,1,N,X.
+# BETA: mandatory for C ignored for A/B.  Full list is 0,1,N,X.
+#
+# NOTE: for a storage format to be used by ATLAS, enough copy funcs must
+#       be supplied for use, and the number required varies by whether the
+#       format is for GEMM's A/B or C matrix:
+#       A&B: TOBLK=1 and for real TRANS=N&T, cplx TRANS=N&T&C&H
+#            TOBLK=0 must be present for testing & custom uses.
+#       C  : TOBLK=0 required. TOBLK=1 needed for testing & custom uses.
+#
+# This routine doesn't work for non-aligned C, and perf not good enough to fix
+#ID=1 STGID=0 CBLK=1 TOBLK=0 MU=3 NU=3 KVEC=8 VLEN=8 SYRK=1 REAL=1 SINGLE=1 \
+#     ALPHA=1,N,X BETA=0,N,1,X ROUT='ATL_skblk2C3x3.c' AUTH='R. Clint Whaley'
+ID=2 STGID=0 TOBLK=1 MU=1 NU=4 VLEN=4 ALPHA=1,N,X REAL=1 SINGLE=1 \
+     ROUT='ATL_cpAN2blk4_avx2.c' AUTH='R. Clint Whaley'
+ID=3 STGID=0 TOBLK=1 MU=1 NU=12 VLEN=4 ALPHA=1,N,X REAL=1 SINGLE=1 \
+     ROUT='ATL_cpAN2blk12_avx2.c' AUTH='R. Clint Whaley'

@@ -1,0 +1,32 @@
+include Make.inc
+mySRCdir = $(SRCdir)/src/threads
+INCS = $(INCSdir)/atlas_tprim.h \
+       $(INCAdir)/atlas_taffinity.h $(INCAdir)/atlas_pthreads.h
+LNG=c
+ARC=mut
+obj = ATL_unlock.o ATL_trylock.o ATL_lock.o ATL_lock_destroy.o \
+      ATL_lock_init.o ATL_thread_join.o ATL_thread_start.o
+
+lib : tprim.grd
+tprim.grd : $(obj)
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) $(obj)
+	$(RANLIB) $(ATLASlib)
+	touch lib.grd
+
+ATL_thread_join.o : $(INCS) $(mySRCdir)/ATL_thread_join.c
+	$(KC) $(KCFLAGS) -o $@ -c $(mySRCdir)/ATL_thread_join.c
+ATL_thread_start.o : $(INCS) $(mySRCdir)/ATL_thread_start.c
+	$(KC) $(KCFLAGS) -o $@ -c $(mySRCdir)/ATL_thread_start.c
+
+ATL_lock_destroy.o : $(INCS) $(mySRCdir)/ATL_lock_destroy.c
+	$(KC) $(KCFLAGS) -DATL_USE_$(ARC)=1 -o $@ -c $(mySRCdir)/ATL_lock_destroy.c
+ATL_lock_init.o : $(INCS) $(mySRCdir)/ATL_lock_init.c
+	$(KC) $(KCFLAGS) -DATL_USE_$(ARC)=1 -o $@ -c $(mySRCdir)/ATL_lock_init.c
+
+ATL_unlock.o : $(INCS) $(mySRCdir)/ATL_unlock_$(ARC).$(LNG)
+	$(KC) $(KCFLAGS) -o $@ -c $(mySRCdir)/ATL_unlock_$(ARC).$(LNG)
+ATL_trylock.o : $(INCS) $(mySRCdir)/ATL_trylock_$(ARC).$(LNG)
+	$(KC) $(KCFLAGS) -o $@ -c $(mySRCdir)/ATL_trylock_$(ARC).$(LNG)
+ATL_lock.o : $(INCS) $(mySRCdir)/ATL_lock_$(ARC).$(LNG)
+	$(KC) $(KCFLAGS) -o $@ -c $(mySRCdir)/ATL_lock_$(ARC).$(LNG)
+

@@ -1,0 +1,68 @@
+/*
+ * Automatically Tuned Linear Algebra Software v3.11.41
+ * (C) Copyright 1999 R. Clint Whaley
+ */
+#include "atlas_misc.h"
+#include "atlas_tst.h"
+#include "atlas_f77blas.h"
+
+#define F77GEMM F77gemm
+#define f77gemm Mjoin(PATL,f77gemm)
+
+void f77gemm(const enum ATLAS_TRANS TA, const enum ATLAS_TRANS TB,
+             const int M, const int N, const int K, const SCALAR alpha,
+             const TYPE *A, const int lda, const TYPE *B, const int ldb,
+             const SCALAR beta, TYPE *C, const int ldc)
+{
+   #if defined(StringSunStyle)
+      #if defined(ATL_FunkyInts)
+         F77_INTEGER ONE=1;
+      #else
+         int ONE=1;
+      #endif
+   #elif defined(StringStructVal) || defined(StringStructPtr) || defined(StringCrayStyle)
+      F77_CHAR fta;
+      F77_CHAR ftb;
+   #endif
+   #ifdef ATL_FunkyInts
+      const F77_INTEGER F77M=M, F77N=N, F77K=K, F77lda=lda, F77ldb=ldb,
+                        F77ldc=ldc;
+   #else
+      #define F77M M
+      #define F77N N
+      #define F77K K
+      #define F77lda lda
+      #define F77ldb ldb
+      #define F77ldc ldc
+   #endif
+   char cta, ctb;
+   if (TA == AtlasNoTrans) cta = 'N';
+   else if (TA == AtlasTrans) cta = 'T';
+   else if (TA == AtlasConjTrans) cta = 'C';
+   if (TB == AtlasNoTrans) ctb = 'N';
+   else if (TB == AtlasTrans) ctb = 'T';
+   else if (TB == AtlasConjTrans) ctb = 'C';
+
+   #if defined(StringSunStyle)
+      F77GEMM(&cta, &ctb, &F77M, &F77N, &F77K, SADD alpha, A, &F77lda,
+              B, &F77ldb, SADD beta, C, &F77ldc, ONE, ONE);
+   #elif defined(StringCrayStyle)
+      fta = ATL_C2F_TransChar(cta);
+      ftb = ATL_C2F_TransChar(ctb);
+      F77GEMM(fta, ftb, &F77M, &F77N, &F77K, SADD alpha, A, &F77lda, B, &F77ldb,
+              SADD beta, C, &F77ldc);
+   #elif defined(StringStructVal)
+      fta.len = ftb.len = 1;
+      fta.cp = &cta; ftb.cp = &ctb;
+      F77GEMM(fta, ftb, &F77M, &F77N, &F77K, SADD alpha, A, &F77lda, B, &F77ldb,
+              SADD beta, C, &F77ldc);
+   #elif defined(StringStructPtr)
+      fta.len = ftb.len = 1;
+      fta.cp = &cta; ftb.cp = &ctb;
+      F77GEMM(&fta, &ftb, &F77M, &F77N, &F77K, SADD alpha, A, &F77lda,
+              B, &F77ldb, SADD beta, C, &F77ldc);
+   #else
+      fprintf(stderr, "\n\nF77/C interface not defined!!\n\n");
+      exit(-1);
+   #endif
+}

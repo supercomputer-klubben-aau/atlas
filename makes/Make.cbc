@@ -1,0 +1,133 @@
+include Make.inc
+mySRCdir = $(SRCdir)/src/threads/cbc
+iobj = ATL_barrier.o  ATL_barrier_nopost0.o \
+       ATL_cbc_barrier.o ATL_cbc_barrier_nopost0.o \
+       ATL_post.o ATL_cbc_post.o \
+       ATL_icomb_min.o ATL_icomb_max.o ATL_icomb_sum.o
+sobj = ATL_scomb_min.o ATL_scomb_max.o ATL_scomb_sum.o \
+            ATL_scomb_iamax.o \
+            ATL_scomb_iamax_nopost0.o ATL_scbc_comb_iamax_nopost0.o
+dobj = ATL_dcomb_min.o ATL_dcomb_max.o ATL_dcomb_sum.o \
+            ATL_dcomb_iamax.o \
+            ATL_dcomb_iamax_nopost0.o ATL_dcbc_comb_iamax_nopost0.o
+cobj = ATL_ccomb_min.o ATL_ccomb_max.o ATL_ccomb_sum.o \
+            ATL_ccomb_iamax.o \
+            ATL_ccomb_iamax_nopost0.o ATL_ccbc_comb_iamax_nopost0.o
+zobj = ATL_zcomb_min.o ATL_zcomb_max.o ATL_zcomb_sum.o \
+            ATL_zcomb_iamax.o \
+            ATL_zcomb_iamax_nopost0.o ATL_zcbc_comb_iamax_nopost0.o
+
+lib : ilib slib dlib clib zlib
+slib : slib.grd
+
+slib.grd : $(sobj)
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) $(sobj)
+	$(RANLIB) $(ATLASlib)
+	touch slib.grd
+dlib : dlib.grd
+
+dlib.grd : $(dobj)
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) $(dobj)
+	$(RANLIB) $(ATLASlib)
+	touch dlib.grd
+clib : clib.grd
+
+clib.grd : $(cobj)
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) $(cobj)
+	$(RANLIB) $(ATLASlib)
+	touch clib.grd
+zlib : zlib.grd
+
+zlib.grd : $(zobj)
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) $(zobj)
+	$(RANLIB) $(ATLASlib)
+	touch zlib.grd
+ilib : ilib.grd
+
+ilib.grd : $(iobj)
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) $(iobj)
+	$(RANLIB) $(ATLASlib)
+	touch ilib.grd
+
+ATL_cbc_post.o : $(dep) $(mySRCdir)/ATL_post.c
+	$(KC) $(KCFLAGS) -DDOFENCE=1 -o $@ -c $(mySRCdir)/ATL_post.c
+ATL_cbc_barrier_nopost0.o : $(dep) $(mySRCdir)/ATL_barrier.c
+	$(KC) $(KCFLAGS) -DDOFENCE=1 -o $@ -c $(mySRCdir)/ATL_barrier.c
+ATL_cbc_barrier.o : $(dep) $(mySRCdir)/ATL_barrier.c
+	$(KC) $(KCFLAGS) -DDOFENCE=1 -DDOPOST=1 -o $@ -c $(mySRCdir)/ATL_barrier.c
+ATL_post.o : $(dep) $(mySRCdir)/ATL_post.c
+	$(KC) $(KCFLAGS)  -o $@ -c $(mySRCdir)/ATL_post.c
+ATL_barrier_nopost0.o : $(dep) $(mySRCdir)/ATL_barrier.c
+	$(KC) $(KCFLAGS)  -o $@ -c $(mySRCdir)/ATL_barrier.c
+ATL_barrier.o : $(dep) $(mySRCdir)/ATL_barrier.c
+	$(KC) $(KCFLAGS)  -DDOPOST=1 -o $@ -c $(mySRCdir)/ATL_barrier.c
+ATL_icbc_comb_iamax_nopost0.o : $(dep) $(mySRCdir)/ATL_comb_iamax_nopost0.c
+	$(KC) $(KCFLAGS) -o $@ -c -DDOFENCE=1 -DSINT \
+              $(mySRCdir)/ATL_comb_iamax_nopost0.c
+ATL_icomb_iamax_nopost0.o : $(dep) $(mySRCdir)/ATL_comb_iamax_nopost0.c
+	$(KC) $(KCFLAGS) -o $@ -c -DSINT $(mySRCdir)/ATL_comb_iamax_nopost0.c
+ATL_icomb_iamax.o : $(dep) $(mySRCdir)/ATL_comb_iamax.c
+	$(KC) $(KCFLAGS) -o $@ -c -DSINT $(mySRCdir)/ATL_comb_iamax.c
+ATL_icomb_sum.o : $(dep) $(mySRCdir)/ATL_comb1.c
+	$(KC) $(KCFLAGS) -o $@ -c -DSINT -DCOMBSUM $(mySRCdir)/ATL_comb1.c
+ATL_icomb_max.o : $(dep) $(mySRCdir)/ATL_comb1.c
+	$(KC) $(KCFLAGS) -o $@ -c -DSINT -DCOMBMAX $(mySRCdir)/ATL_comb1.c
+ATL_icomb_min.o : $(dep) $(mySRCdir)/ATL_comb1.c
+	$(KC) $(KCFLAGS) -o $@ -c -DSINT -DCOMBMIN $(mySRCdir)/ATL_comb1.c
+
+ATL_scbc_comb_iamax_nopost0.o : $(dep) $(mySRCdir)/ATL_comb_iamax_nopost0.c
+	$(KC) $(KCFLAGS) -o $@ -c -DDOFENCE=1 -DSREAL \
+              $(mySRCdir)/ATL_comb_iamax_nopost0.c
+ATL_scomb_iamax_nopost0.o : $(dep) $(mySRCdir)/ATL_comb_iamax_nopost0.c
+	$(KC) $(KCFLAGS) -o $@ -c -DSREAL $(mySRCdir)/ATL_comb_iamax_nopost0.c
+ATL_scomb_iamax.o : $(dep) $(mySRCdir)/ATL_comb_iamax.c
+	$(KC) $(KCFLAGS) -o $@ -c -DSREAL $(mySRCdir)/ATL_comb_iamax.c
+ATL_scomb_sum.o : $(dep) $(mySRCdir)/ATL_comb1.c
+	$(KC) $(KCFLAGS) -o $@ -c -DSREAL -DCOMBSUM $(mySRCdir)/ATL_comb1.c
+ATL_scomb_max.o : $(dep) $(mySRCdir)/ATL_comb1.c
+	$(KC) $(KCFLAGS) -o $@ -c -DSREAL -DCOMBMAX $(mySRCdir)/ATL_comb1.c
+ATL_scomb_min.o : $(dep) $(mySRCdir)/ATL_comb1.c
+	$(KC) $(KCFLAGS) -o $@ -c -DSREAL -DCOMBMIN $(mySRCdir)/ATL_comb1.c
+
+ATL_dcbc_comb_iamax_nopost0.o : $(dep) $(mySRCdir)/ATL_comb_iamax_nopost0.c
+	$(KC) $(KCFLAGS) -o $@ -c -DDOFENCE=1 -DDREAL \
+              $(mySRCdir)/ATL_comb_iamax_nopost0.c
+ATL_dcomb_iamax_nopost0.o : $(dep) $(mySRCdir)/ATL_comb_iamax_nopost0.c
+	$(KC) $(KCFLAGS) -o $@ -c -DDREAL $(mySRCdir)/ATL_comb_iamax_nopost0.c
+ATL_dcomb_iamax.o : $(dep) $(mySRCdir)/ATL_comb_iamax.c
+	$(KC) $(KCFLAGS) -o $@ -c -DDREAL $(mySRCdir)/ATL_comb_iamax.c
+ATL_dcomb_sum.o : $(dep) $(mySRCdir)/ATL_comb1.c
+	$(KC) $(KCFLAGS) -o $@ -c -DDREAL -DCOMBSUM $(mySRCdir)/ATL_comb1.c
+ATL_dcomb_max.o : $(dep) $(mySRCdir)/ATL_comb1.c
+	$(KC) $(KCFLAGS) -o $@ -c -DDREAL -DCOMBMAX $(mySRCdir)/ATL_comb1.c
+ATL_dcomb_min.o : $(dep) $(mySRCdir)/ATL_comb1.c
+	$(KC) $(KCFLAGS) -o $@ -c -DDREAL -DCOMBMIN $(mySRCdir)/ATL_comb1.c
+
+ATL_ccbc_comb_iamax_nopost0.o : $(dep) $(mySRCdir)/ATL_comb_iamax_nopost0.c
+	$(KC) $(KCFLAGS) -o $@ -c -DDOFENCE=1 -DSCPLX \
+              $(mySRCdir)/ATL_comb_iamax_nopost0.c
+ATL_ccomb_iamax_nopost0.o : $(dep) $(mySRCdir)/ATL_comb_iamax_nopost0.c
+	$(KC) $(KCFLAGS) -o $@ -c -DSCPLX $(mySRCdir)/ATL_comb_iamax_nopost0.c
+ATL_ccomb_iamax.o : $(dep) $(mySRCdir)/ATL_comb_iamax.c
+	$(KC) $(KCFLAGS) -o $@ -c -DSCPLX $(mySRCdir)/ATL_comb_iamax.c
+ATL_ccomb_sum.o : $(dep) $(mySRCdir)/ATL_comb1.c
+	$(KC) $(KCFLAGS) -o $@ -c -DSCPLX -DCOMBSUM $(mySRCdir)/ATL_comb1.c
+ATL_ccomb_max.o : $(dep) $(mySRCdir)/ATL_comb1.c
+	$(KC) $(KCFLAGS) -o $@ -c -DSCPLX -DCOMBMAX $(mySRCdir)/ATL_comb1.c
+ATL_ccomb_min.o : $(dep) $(mySRCdir)/ATL_comb1.c
+	$(KC) $(KCFLAGS) -o $@ -c -DSCPLX -DCOMBMIN $(mySRCdir)/ATL_comb1.c
+
+ATL_zcbc_comb_iamax_nopost0.o : $(dep) $(mySRCdir)/ATL_comb_iamax_nopost0.c
+	$(KC) $(KCFLAGS) -o $@ -c -DDOFENCE=1 -DDCPLX \
+              $(mySRCdir)/ATL_comb_iamax_nopost0.c
+ATL_zcomb_iamax_nopost0.o : $(dep) $(mySRCdir)/ATL_comb_iamax_nopost0.c
+	$(KC) $(KCFLAGS) -o $@ -c -DDCPLX $(mySRCdir)/ATL_comb_iamax_nopost0.c
+ATL_zcomb_iamax.o : $(dep) $(mySRCdir)/ATL_comb_iamax.c
+	$(KC) $(KCFLAGS) -o $@ -c -DDCPLX $(mySRCdir)/ATL_comb_iamax.c
+ATL_zcomb_sum.o : $(dep) $(mySRCdir)/ATL_comb1.c
+	$(KC) $(KCFLAGS) -o $@ -c -DDCPLX -DCOMBSUM $(mySRCdir)/ATL_comb1.c
+ATL_zcomb_max.o : $(dep) $(mySRCdir)/ATL_comb1.c
+	$(KC) $(KCFLAGS) -o $@ -c -DDCPLX -DCOMBMAX $(mySRCdir)/ATL_comb1.c
+ATL_zcomb_min.o : $(dep) $(mySRCdir)/ATL_comb1.c
+	$(KC) $(KCFLAGS) -o $@ -c -DDCPLX -DCOMBMIN $(mySRCdir)/ATL_comb1.c
+

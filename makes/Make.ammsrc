@@ -1,0 +1,781 @@
+include Make.inc
+mySRCdir = $(SRCdir)/src/blas/ammm
+
+all : lib
+lib : dlib slib zlib clib
+tlib : dtlib stlib ztlib ctlib
+double    : dlib
+single    : slib
+complex   : clib
+complex16 : zlib
+
+clean : dclean sclean cclean zclean
+	rm -f KERNEL/*.o KERNEL/[D,S,C,Z]COPY/*.o
+
+sINCdep = $(INCSdir)/atlas_misc.h $(INCAdir)/atlas_type.h \
+          $(INCAdir)/atlas_sipgen_view.h $(INCAdir)/atlas_sopgen_view.h \
+          $(INCAdir)/atlas_sipmen_view.h $(INCAdir)/atlas_sipmek_view.h \
+          $(INCAdir)/atlas_sipnek_view.h
+sINCSQdep = $(INCSdir)/atlas_misc.h $(INCAdir)/atlas_type.h
+
+sobj = ATL_siploops.o ATL_soploops.o ATL_sammm.o ATL_sopinfo.o ATL_sipinfo.o \
+       ATL_sipmeninfo.o ATL_sipmenUMinfo.o ATL_sipmekinfo.o ATL_sipnekinfo.o \
+       ATL_sipsyrkinfo.o ATL_sopsyrkInfo.o ATL_sopsyr2kInfo.o \
+       ATL_sopsymmInfo.o ATL_sammmKNMK.o ATL_sammmKMNK.o ATL_sammm_rk2.o \
+       ATL_saliased_rkK.o ATL_sammm_rkK.o ATL_sammm_IP.o ATL_sammm_tN.o \
+       ATL_srk4n4.o
+
+slib : slib.grd
+	cd KERNEL ; $(PMAKE) -f sMake_amm slib
+	cd KERNEL/SCOPY ; $(PMAKE)
+sclean:
+	rm -f $(sobj) slib.grd
+
+slib.grd : $(sobj)
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) $(sobj)
+	$(RANLIB) $(ATLASlib)
+	touch slib.grd
+ATL_sopsymmInfo.o : $(sINCdep) $(mySRCdir)/ATL_opsymmInfo.c \
+   $(INCAdir)/atlas_samm_sum.h $(INCAdir)/atlas_sopgen_view.h 
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_opsymmInfo.c
+ATL_sopsyr2kInfo.o : $(sINCdep) $(mySRCdir)/ATL_opsyr2kInfo.c \
+   $(INCAdir)/atlas_samm_sum.h $(INCAdir)/atlas_sopgen_view.h 
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_opsyr2kInfo.c
+ATL_sopsyrkInfo.o : $(sINCdep) $(mySRCdir)/ATL_opsyrkInfo.c \
+   $(INCAdir)/atlas_samm_sum.h $(INCAdir)/atlas_ssyrk_view.h \
+   $(INCAdir)/atlas_samm_sqsyrk.h $(INCAdir)/atlas_samm_umsyrk.h 
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_opsyrkInfo.c
+ATL_sipsyrkinfo.o : $(sINCdep) $(mySRCdir)/ATL_ipsyrkinfo.c \
+   $(INCAdir)/atlas_samm_sum.h $(INCAdir)/atlas_ssyrk_view.h \
+   $(INCAdir)/atlas_samm_sqsyrk.h $(INCAdir)/atlas_samm_umsyrk.h 
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ipsyrkinfo.c
+ATL_saliased_rkK.o : $(sINCdep) $(mySRCdir)/ATL_aliased_rkK.c \
+                    $(INCAdir)/atlas_samm_sum.h
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_aliased_rkK.c
+ATL_sammm_rkK.o : $(sINCdep) $(mySRCdir)/ATL_ammm_rkK.c \
+                    $(INCAdir)/atlas_samm_sum.h
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ammm_rkK.c
+ATL_sammmKMNK.o : $(sINCdep) $(mySRCdir)/ATL_ammmKMNK.c \
+                    $(INCAdir)/atlas_samm_sum.h
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ammmKMNK.c
+ATL_sammmKNMK.o : $(sINCdep) $(mySRCdir)/ATL_ammmKNMK.c \
+                    $(INCAdir)/atlas_samm_sum.h
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ammmKNMK.c
+ATL_sammm_IP.o : $(sINCdep) $(mySRCdir)/ATL_ammm_IP.c \
+                    $(INCAdir)/atlas_samm_sum.h
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ammm_IP.c
+ATL_sammm.o : $(sINCdep) $(mySRCdir)/ATL_ammm.c \
+                    $(INCAdir)/atlas_samm_sum.h
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ammm.c
+ATL_sammm_1b.o : $(sINCdep) $(mySRCdir)/ATL_ammm_1b.c \
+                    $(INCAdir)/atlas_samm_sum.h
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ammm_1b.c
+ATL_sammm_tN.o : $(sINCdep) $(mySRCdir)/ATL_ammm_tN.c \
+                    $(INCAdir)/atlas_samm_sum.h
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ammm_tN.c
+ATL_siploops.o : $(sINCdep) $(mySRCdir)/ATL_iploops.c \
+                    $(INCAdir)/atlas_samm_sum.h
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_iploops.c
+ATL_soploops.o : $(sINCdep) $(mySRCdir)/ATL_oploops.c \
+                    $(INCAdir)/atlas_samm_sum.h
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_oploops.c
+ATL_sCopyInfo_oprk.o : $(sINCdep) $(mySRCdir)/ATL_CopyInfo_rkK.c
+	$(SKC) -DSREAL=1 -DATL_oprk_=1 -o $@ -c $(sKCFLAGS) \
+                     -I$(INCAdir)/COPY $(mySRCdir)/ATL_CopyInfo_rkK.c
+ATL_sGetInfo_oprk.o : $(sINCdep) $(mySRCdir)/ATL_GetInfo_rkK.c
+	$(SKC) -DSREAL=1 -DATL_oprk_=1 -o $@ -c $(sKCFLAGS) \
+                     $(mySRCdir)/ATL_GetInfo_rkK.c
+ATL_sCopyInfo_opsq.o : $(sINCdep) $(mySRCdir)/ATL_CopyInfo_rkK.c
+	$(SKC) -DSREAL=1 -DATL_opsq_=1 -o $@ -c $(sKCFLAGS) \
+                     -I$(INCAdir)/COPY $(mySRCdir)/ATL_CopyInfo_rkK.c
+ATL_sGetInfo_opsq.o : $(sINCdep) $(mySRCdir)/ATL_GetInfo_rkK.c
+	$(SKC) -DSREAL=1 -DATL_opsq_=1 -o $@ -c $(sKCFLAGS) \
+                     $(mySRCdir)/ATL_GetInfo_rkK.c
+strsmK: ATL_strsm_ammLL.o
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) ATL_strsm_ammLL.o
+	$(RANLIB) $(ATLASlib)
+ATL_strsm_ammLL.o : $(sINCdep) $(mySRCdir)/ATL_trsm_ammLL.c
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) \
+                     $(mySRCdir)/ATL_trsm_ammLL.c
+ATL_sipnekinfo.o : \
+   $(INCAdir)/COPY/atlas_sFromANg_a1.h $(INCAdir)/COPY/atlas_sFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_sIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_sIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_sFromANg_aN.h $(INCAdir)/COPY/atlas_sFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_sIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_sIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_sFromANg_aX.h $(INCAdir)/COPY/atlas_sFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_sIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_sIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_sipnek_view.h $(INCAdir)/atlas_samm_kern.h \
+   $(mySRCdir)/ATL_ipnekinfo.c 
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ipnekinfo.c
+ATL_sipmekinfo.o : \
+   $(INCAdir)/COPY/atlas_sFromANg_a1.h $(INCAdir)/COPY/atlas_sFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_sIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_sIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_sFromANg_aN.h $(INCAdir)/COPY/atlas_sFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_sIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_sIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_sFromANg_aX.h $(INCAdir)/COPY/atlas_sFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_sIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_sIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_sipmek_view.h $(INCAdir)/atlas_samm_kern.h \
+   $(mySRCdir)/ATL_ipmekinfo.c 
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ipmekinfo.c
+ATL_sipmenUMinfo.o : \
+   $(INCAdir)/COPY/atlas_sFromANg_a1.h $(INCAdir)/COPY/atlas_sFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_sIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_sIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_sFromANg_aN.h $(INCAdir)/COPY/atlas_sFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_sIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_sIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_sFromANg_aX.h $(INCAdir)/COPY/atlas_sFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_sIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_sIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_sipmenUM_view.h $(INCAdir)/atlas_samm_kern.h \
+   $(mySRCdir)/ATL_ipmeninfo.c 
+	$(SKC) -DSREAL=1 -DMUNUMUL_=1 -o $@ -c $(sKCFLAGS) \
+           $(mySRCdir)/ATL_ipmeninfo.c
+ATL_sipmeninfo.o : \
+   $(INCAdir)/COPY/atlas_sFromANg_a1.h $(INCAdir)/COPY/atlas_sFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_sIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_sIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_sFromANg_aN.h $(INCAdir)/COPY/atlas_sFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_sIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_sIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_sFromANg_aX.h $(INCAdir)/COPY/atlas_sFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_sIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_sIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_sipmen_view.h $(INCAdir)/atlas_samm_kern.h \
+   $(mySRCdir)/ATL_ipmeninfo.c 
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ipmeninfo.c
+ATL_sipinfo.o : \
+   $(INCAdir)/COPY/atlas_sFromANg_a1.h $(INCAdir)/COPY/atlas_sFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_sIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_sIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_sFromANg_aN.h $(INCAdir)/COPY/atlas_sFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_sIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_sIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_sFromANg_aX.h $(INCAdir)/COPY/atlas_sFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_sIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_sIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_sipgen_view.h $(INCAdir)/atlas_samm_kern.h \
+   $(mySRCdir)/ATL_ipinfo.c 
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ipinfo.c
+ATL_sopinfo.o : \
+   $(INCAdir)/COPY/atlas_sFromANg_a1.h $(INCAdir)/COPY/atlas_sFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_sIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_sIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_sFromANg_aN.h $(INCAdir)/COPY/atlas_sFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_sIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_sIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_sFromANg_aX.h $(INCAdir)/COPY/atlas_sFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_sIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_sIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_sIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_sopgen_view.h $(INCAdir)/atlas_samm_kern.h \
+   $(mySRCdir)/ATL_opinfo.c 
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_opinfo.c
+
+ATL_sGetRankKInfo.o : $(sINCdep) $(mySRCdir)/ATL_GetRankKInfo.c
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_GetRankKInfo.c
+ATL_sGetAmmmInfo.o : $(sINCdep) $(mySRCdir)/ATL_GetAmmmInfo.c
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_GetAmmmInfo.c
+ATL_sammmMNK.o : $(sINCdep) $(mySRCdir)/ATL_ammmMNK.c
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ammmMNK.c
+ATL_sammm_rk2.o : $(sINCdep) $(mySRCdir)/ATL_ammm_rk2.c
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ammm_rk2.c
+ATL_sammmNMK.o : $(sINCdep) $(mySRCdir)/ATL_ammmNMK.c
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ammmNMK.c
+ATL_sammmK.o : $(sINCdep) $(mySRCdir)/ATL_ammmK.c
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ammmK.c
+ATL_sammmNKM.o : $(sINCdep) $(mySRCdir)/ATL_ammmNKM.c
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ammmNKM.c
+ATL_sammmREC.o : $(sINCdep) $(mySRCdir)/ATL_ammmREC.c
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_ammmREC.c
+ATL_srk4n4.o : $(sINCdep) $(mySRCdir)/ATL_rk4n4.c
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_rk4n4.c
+ATL_sGetAmmmInfoSQ.o : $(sINCSQdep) $(mySRCdir)/ATL_GetAmmmInfoSQ.c
+	$(SKC) -DSREAL=1 -o $@ -c $(sKCFLAGS) $(mySRCdir)/ATL_GetAmmmInfoSQ.c
+dINCdep = $(INCSdir)/atlas_misc.h $(INCAdir)/atlas_type.h \
+          $(INCAdir)/atlas_dipgen_view.h $(INCAdir)/atlas_dopgen_view.h \
+          $(INCAdir)/atlas_dipmen_view.h $(INCAdir)/atlas_dipmek_view.h \
+          $(INCAdir)/atlas_dipnek_view.h
+dINCSQdep = $(INCSdir)/atlas_misc.h $(INCAdir)/atlas_type.h
+
+dobj = ATL_diploops.o ATL_doploops.o ATL_dammm.o ATL_dopinfo.o ATL_dipinfo.o \
+       ATL_dipmeninfo.o ATL_dipmenUMinfo.o ATL_dipmekinfo.o ATL_dipnekinfo.o \
+       ATL_dipsyrkinfo.o ATL_dopsyrkInfo.o ATL_dopsyr2kInfo.o \
+       ATL_dopsymmInfo.o ATL_dammmKNMK.o ATL_dammmKMNK.o ATL_dammm_rk2.o \
+       ATL_daliased_rkK.o ATL_dammm_rkK.o ATL_dammm_IP.o ATL_dammm_tN.o \
+       ATL_drk4n4.o
+
+dlib : dlib.grd
+	cd KERNEL ; $(PMAKE) -f dMake_amm dlib
+	cd KERNEL/DCOPY ; $(PMAKE)
+dclean:
+	rm -f $(dobj) dlib.grd
+
+dlib.grd : $(dobj)
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) $(dobj)
+	$(RANLIB) $(ATLASlib)
+	touch dlib.grd
+ATL_dopsymmInfo.o : $(dINCdep) $(mySRCdir)/ATL_opsymmInfo.c \
+   $(INCAdir)/atlas_damm_sum.h $(INCAdir)/atlas_dopgen_view.h 
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_opsymmInfo.c
+ATL_dopsyr2kInfo.o : $(dINCdep) $(mySRCdir)/ATL_opsyr2kInfo.c \
+   $(INCAdir)/atlas_damm_sum.h $(INCAdir)/atlas_dopgen_view.h 
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_opsyr2kInfo.c
+ATL_dopsyrkInfo.o : $(dINCdep) $(mySRCdir)/ATL_opsyrkInfo.c \
+   $(INCAdir)/atlas_damm_sum.h $(INCAdir)/atlas_dsyrk_view.h \
+   $(INCAdir)/atlas_damm_sqsyrk.h $(INCAdir)/atlas_damm_umsyrk.h 
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_opsyrkInfo.c
+ATL_dipsyrkinfo.o : $(dINCdep) $(mySRCdir)/ATL_ipsyrkinfo.c \
+   $(INCAdir)/atlas_damm_sum.h $(INCAdir)/atlas_dsyrk_view.h \
+   $(INCAdir)/atlas_damm_sqsyrk.h $(INCAdir)/atlas_damm_umsyrk.h 
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ipsyrkinfo.c
+ATL_daliased_rkK.o : $(dINCdep) $(mySRCdir)/ATL_aliased_rkK.c \
+                    $(INCAdir)/atlas_damm_sum.h
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_aliased_rkK.c
+ATL_dammm_rkK.o : $(dINCdep) $(mySRCdir)/ATL_ammm_rkK.c \
+                    $(INCAdir)/atlas_damm_sum.h
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ammm_rkK.c
+ATL_dammmKMNK.o : $(dINCdep) $(mySRCdir)/ATL_ammmKMNK.c \
+                    $(INCAdir)/atlas_damm_sum.h
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ammmKMNK.c
+ATL_dammmKNMK.o : $(dINCdep) $(mySRCdir)/ATL_ammmKNMK.c \
+                    $(INCAdir)/atlas_damm_sum.h
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ammmKNMK.c
+ATL_dammm_IP.o : $(dINCdep) $(mySRCdir)/ATL_ammm_IP.c \
+                    $(INCAdir)/atlas_damm_sum.h
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ammm_IP.c
+ATL_dammm.o : $(dINCdep) $(mySRCdir)/ATL_ammm.c \
+                    $(INCAdir)/atlas_damm_sum.h
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ammm.c
+ATL_dammm_1b.o : $(dINCdep) $(mySRCdir)/ATL_ammm_1b.c \
+                    $(INCAdir)/atlas_damm_sum.h
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ammm_1b.c
+ATL_dammm_tN.o : $(dINCdep) $(mySRCdir)/ATL_ammm_tN.c \
+                    $(INCAdir)/atlas_damm_sum.h
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ammm_tN.c
+ATL_diploops.o : $(dINCdep) $(mySRCdir)/ATL_iploops.c \
+                    $(INCAdir)/atlas_damm_sum.h
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_iploops.c
+ATL_doploops.o : $(dINCdep) $(mySRCdir)/ATL_oploops.c \
+                    $(INCAdir)/atlas_damm_sum.h
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_oploops.c
+ATL_dCopyInfo_oprk.o : $(dINCdep) $(mySRCdir)/ATL_CopyInfo_rkK.c
+	$(DKC) -DDREAL=1 -DATL_oprk_=1 -o $@ -c $(dKCFLAGS) \
+                     -I$(INCAdir)/COPY $(mySRCdir)/ATL_CopyInfo_rkK.c
+ATL_dGetInfo_oprk.o : $(dINCdep) $(mySRCdir)/ATL_GetInfo_rkK.c
+	$(DKC) -DDREAL=1 -DATL_oprk_=1 -o $@ -c $(dKCFLAGS) \
+                     $(mySRCdir)/ATL_GetInfo_rkK.c
+ATL_dCopyInfo_opsq.o : $(dINCdep) $(mySRCdir)/ATL_CopyInfo_rkK.c
+	$(DKC) -DDREAL=1 -DATL_opsq_=1 -o $@ -c $(dKCFLAGS) \
+                     -I$(INCAdir)/COPY $(mySRCdir)/ATL_CopyInfo_rkK.c
+ATL_dGetInfo_opsq.o : $(dINCdep) $(mySRCdir)/ATL_GetInfo_rkK.c
+	$(DKC) -DDREAL=1 -DATL_opsq_=1 -o $@ -c $(dKCFLAGS) \
+                     $(mySRCdir)/ATL_GetInfo_rkK.c
+dtrsmK: ATL_dtrsm_ammLL.o
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) ATL_dtrsm_ammLL.o
+	$(RANLIB) $(ATLASlib)
+ATL_dtrsm_ammLL.o : $(dINCdep) $(mySRCdir)/ATL_trsm_ammLL.c
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) \
+                     $(mySRCdir)/ATL_trsm_ammLL.c
+ATL_dipnekinfo.o : \
+   $(INCAdir)/COPY/atlas_dFromANg_a1.h $(INCAdir)/COPY/atlas_dFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_dIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_dIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_dFromANg_aN.h $(INCAdir)/COPY/atlas_dFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_dIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_dIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_dFromANg_aX.h $(INCAdir)/COPY/atlas_dFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_dIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_dIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_dipnek_view.h $(INCAdir)/atlas_damm_kern.h \
+   $(mySRCdir)/ATL_ipnekinfo.c 
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ipnekinfo.c
+ATL_dipmekinfo.o : \
+   $(INCAdir)/COPY/atlas_dFromANg_a1.h $(INCAdir)/COPY/atlas_dFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_dIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_dIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_dFromANg_aN.h $(INCAdir)/COPY/atlas_dFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_dIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_dIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_dFromANg_aX.h $(INCAdir)/COPY/atlas_dFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_dIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_dIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_dipmek_view.h $(INCAdir)/atlas_damm_kern.h \
+   $(mySRCdir)/ATL_ipmekinfo.c 
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ipmekinfo.c
+ATL_dipmenUMinfo.o : \
+   $(INCAdir)/COPY/atlas_dFromANg_a1.h $(INCAdir)/COPY/atlas_dFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_dIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_dIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_dFromANg_aN.h $(INCAdir)/COPY/atlas_dFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_dIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_dIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_dFromANg_aX.h $(INCAdir)/COPY/atlas_dFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_dIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_dIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_dipmenUM_view.h $(INCAdir)/atlas_damm_kern.h \
+   $(mySRCdir)/ATL_ipmeninfo.c 
+	$(DKC) -DDREAL=1 -DMUNUMUL_=1 -o $@ -c $(dKCFLAGS) \
+           $(mySRCdir)/ATL_ipmeninfo.c
+ATL_dipmeninfo.o : \
+   $(INCAdir)/COPY/atlas_dFromANg_a1.h $(INCAdir)/COPY/atlas_dFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_dIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_dIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_dFromANg_aN.h $(INCAdir)/COPY/atlas_dFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_dIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_dIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_dFromANg_aX.h $(INCAdir)/COPY/atlas_dFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_dIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_dIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_dipmen_view.h $(INCAdir)/atlas_damm_kern.h \
+   $(mySRCdir)/ATL_ipmeninfo.c 
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ipmeninfo.c
+ATL_dipinfo.o : \
+   $(INCAdir)/COPY/atlas_dFromANg_a1.h $(INCAdir)/COPY/atlas_dFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_dIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_dIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_dFromANg_aN.h $(INCAdir)/COPY/atlas_dFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_dIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_dIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_dFromANg_aX.h $(INCAdir)/COPY/atlas_dFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_dIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_dIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_dipgen_view.h $(INCAdir)/atlas_damm_kern.h \
+   $(mySRCdir)/ATL_ipinfo.c 
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ipinfo.c
+ATL_dopinfo.o : \
+   $(INCAdir)/COPY/atlas_dFromANg_a1.h $(INCAdir)/COPY/atlas_dFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_dIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_dIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_dFromANg_aN.h $(INCAdir)/COPY/atlas_dFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_dIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_dIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_dFromANg_aX.h $(INCAdir)/COPY/atlas_dFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_dIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_dIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_dIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_dopgen_view.h $(INCAdir)/atlas_damm_kern.h \
+   $(mySRCdir)/ATL_opinfo.c 
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_opinfo.c
+
+ATL_dGetRankKInfo.o : $(dINCdep) $(mySRCdir)/ATL_GetRankKInfo.c
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_GetRankKInfo.c
+ATL_dGetAmmmInfo.o : $(dINCdep) $(mySRCdir)/ATL_GetAmmmInfo.c
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_GetAmmmInfo.c
+ATL_dammmMNK.o : $(dINCdep) $(mySRCdir)/ATL_ammmMNK.c
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ammmMNK.c
+ATL_dammm_rk2.o : $(dINCdep) $(mySRCdir)/ATL_ammm_rk2.c
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ammm_rk2.c
+ATL_dammmNMK.o : $(dINCdep) $(mySRCdir)/ATL_ammmNMK.c
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ammmNMK.c
+ATL_dammmK.o : $(dINCdep) $(mySRCdir)/ATL_ammmK.c
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ammmK.c
+ATL_dammmNKM.o : $(dINCdep) $(mySRCdir)/ATL_ammmNKM.c
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ammmNKM.c
+ATL_dammmREC.o : $(dINCdep) $(mySRCdir)/ATL_ammmREC.c
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_ammmREC.c
+ATL_drk4n4.o : $(dINCdep) $(mySRCdir)/ATL_rk4n4.c
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_rk4n4.c
+ATL_dGetAmmmInfoSQ.o : $(dINCSQdep) $(mySRCdir)/ATL_GetAmmmInfoSQ.c
+	$(DKC) -DDREAL=1 -o $@ -c $(dKCFLAGS) $(mySRCdir)/ATL_GetAmmmInfoSQ.c
+cINCdep = $(INCSdir)/atlas_misc.h $(INCAdir)/atlas_type.h \
+          $(INCAdir)/atlas_cipgen_view.h $(INCAdir)/atlas_copgen_view.h \
+          $(INCAdir)/atlas_cipmen_view.h $(INCAdir)/atlas_cipmek_view.h \
+          $(INCAdir)/atlas_cipnek_view.h
+cINCSQdep = $(INCSdir)/atlas_misc.h $(INCAdir)/atlas_type.h
+
+cobj = ATL_ciploops.o ATL_coploops.o ATL_cammm.o ATL_copinfo.o ATL_cipinfo.o \
+       ATL_cipmeninfo.o ATL_cipmenUMinfo.o ATL_cipmekinfo.o ATL_cipnekinfo.o \
+       ATL_cipsyrkinfo.o ATL_copsyrkInfo.o ATL_copsyr2kInfo.o \
+       ATL_copsymmInfo.o ATL_cammmKNMK.o ATL_cammmKMNK.o ATL_cammm_rk2.o \
+       ATL_caliased_rkK.o ATL_cammm_rkK.o ATL_cammm_IP.o ATL_cammm_tN.o
+
+clib : clib.grd
+	cd KERNEL ; $(PMAKE) -f sMake_amm slib
+	cd KERNEL/CCOPY ; $(PMAKE)
+cclean:
+	rm -f $(cobj) clib.grd
+
+clib.grd : $(cobj)
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) $(cobj)
+	$(RANLIB) $(ATLASlib)
+	touch clib.grd
+ATL_copsymmInfo.o : $(cINCdep) $(mySRCdir)/ATL_opsymmInfo.c \
+   $(INCAdir)/atlas_camm_sum.h $(INCAdir)/atlas_copgen_view.h 
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_opsymmInfo.c
+ATL_copsyr2kInfo.o : $(cINCdep) $(mySRCdir)/ATL_opsyr2kInfo.c \
+   $(INCAdir)/atlas_camm_sum.h $(INCAdir)/atlas_copgen_view.h 
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_opsyr2kInfo.c
+ATL_copsyrkInfo.o : $(cINCdep) $(mySRCdir)/ATL_opsyrkInfo.c \
+   $(INCAdir)/atlas_camm_sum.h $(INCAdir)/atlas_csyrk_view.h \
+   $(INCAdir)/atlas_camm_sqsyrk.h $(INCAdir)/atlas_camm_umsyrk.h 
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_opsyrkInfo.c
+ATL_cipsyrkinfo.o : $(cINCdep) $(mySRCdir)/ATL_ipsyrkinfo.c \
+   $(INCAdir)/atlas_camm_sum.h $(INCAdir)/atlas_csyrk_view.h \
+   $(INCAdir)/atlas_camm_sqsyrk.h $(INCAdir)/atlas_camm_umsyrk.h 
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_ipsyrkinfo.c
+ATL_caliased_rkK.o : $(cINCdep) $(mySRCdir)/ATL_aliased_rkK.c \
+                    $(INCAdir)/atlas_camm_sum.h
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_aliased_rkK.c
+ATL_cammm_rkK.o : $(cINCdep) $(mySRCdir)/ATL_ammm_rkK.c \
+                    $(INCAdir)/atlas_camm_sum.h
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_ammm_rkK.c
+ATL_cammmKMNK.o : $(cINCdep) $(mySRCdir)/ATL_ammmKMNK.c \
+                    $(INCAdir)/atlas_camm_sum.h
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_ammmKMNK.c
+ATL_cammmKNMK.o : $(cINCdep) $(mySRCdir)/ATL_ammmKNMK.c \
+                    $(INCAdir)/atlas_camm_sum.h
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_ammmKNMK.c
+ATL_cammm_IP.o : $(cINCdep) $(mySRCdir)/ATL_ammm_IP.c \
+                    $(INCAdir)/atlas_camm_sum.h
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_ammm_IP.c
+ATL_cammm.o : $(cINCdep) $(mySRCdir)/ATL_ammm.c \
+                    $(INCAdir)/atlas_camm_sum.h
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_ammm.c
+ATL_cammm_1b.o : $(cINCdep) $(mySRCdir)/ATL_ammm_1b.c \
+                    $(INCAdir)/atlas_camm_sum.h
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_ammm_1b.c
+ATL_cammm_tN.o : $(cINCdep) $(mySRCdir)/ATL_ammm_tN.c \
+                    $(INCAdir)/atlas_camm_sum.h
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_ammm_tN.c
+ATL_ciploops.o : $(cINCdep) $(mySRCdir)/ATL_iploops.c \
+                    $(INCAdir)/atlas_camm_sum.h
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_iploops.c
+ATL_coploops.o : $(cINCdep) $(mySRCdir)/ATL_oploops.c \
+                    $(INCAdir)/atlas_camm_sum.h
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_oploops.c
+ATL_cCopyInfo_oprk.o : $(cINCdep) $(mySRCdir)/ATL_CopyInfo_rkK.c
+	$(SKC) -DSCPLX=1 -DATL_oprk_=1 -o $@ -c $(cKCFLAGS) \
+                     -I$(INCAdir)/COPY $(mySRCdir)/ATL_CopyInfo_rkK.c
+ATL_cGetInfo_oprk.o : $(cINCdep) $(mySRCdir)/ATL_GetInfo_rkK.c
+	$(SKC) -DSCPLX=1 -DATL_oprk_=1 -o $@ -c $(cKCFLAGS) \
+                     $(mySRCdir)/ATL_GetInfo_rkK.c
+ATL_cCopyInfo_opsq.o : $(cINCdep) $(mySRCdir)/ATL_CopyInfo_rkK.c
+	$(SKC) -DSCPLX=1 -DATL_opsq_=1 -o $@ -c $(cKCFLAGS) \
+                     -I$(INCAdir)/COPY $(mySRCdir)/ATL_CopyInfo_rkK.c
+ATL_cGetInfo_opsq.o : $(cINCdep) $(mySRCdir)/ATL_GetInfo_rkK.c
+	$(SKC) -DSCPLX=1 -DATL_opsq_=1 -o $@ -c $(cKCFLAGS) \
+                     $(mySRCdir)/ATL_GetInfo_rkK.c
+ctrsmK: ATL_ctrsm_ammLL.o
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) ATL_ctrsm_ammLL.o
+	$(RANLIB) $(ATLASlib)
+ATL_ctrsm_ammLL.o : $(cINCdep) $(mySRCdir)/ATL_trsm_ammLL.c
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) \
+                     $(mySRCdir)/ATL_trsm_ammLL.c
+ATL_cipherkinfo.o : $(cINCdep) $(mySRCdir)/ATL_ipsyrkinfo.c \
+   $(INCAdir)/atlas_camm_sum.h $(INCAdir)/atlas_csyrk_view.h \
+   $(INCAdir)/atlas_camm_sqsyrk.h $(INCAdir)/atlas_camm_umsyrk.h 
+	$(SKC) -DSCPLX=1 -DConj_=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_ipsyrkinfo.c
+ATL_cammm_rk2.o : $(cINCdep) $(mySRCdir)/ATL_cammm_rk2.c \
+                    $(INCAdir)/atlas_camm_sum.h
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_cammm_rk2.c
+ATL_cammmK.o : $(cINCdep) $(mySRCdir)/ATL_cammmK.c \
+                    $(INCAdir)/atlas_camm_sum.h
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_cammmK.c
+ATL_cipnekinfo.o : \
+   $(INCAdir)/COPY/atlas_cFromANg_a1.h $(INCAdir)/COPY/atlas_cFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_cFromACg_a1.h $(INCAdir)/COPY/atlas_cFromAHg_a1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_cIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_cIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_cFromANg_aN.h $(INCAdir)/COPY/atlas_cFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_cFromACg_aN.h $(INCAdir)/COPY/atlas_cFromAHg_aN.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_cIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_cIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_cFromANg_aX.h $(INCAdir)/COPY/atlas_cFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_cFromACg_aX.h $(INCAdir)/COPY/atlas_cFromAHg_aX.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_cIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_cIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_sipnek_view.h $(INCAdir)/atlas_samm_kern.h \
+   $(mySRCdir)/ATL_ipnekinfo.c 
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_ipnekinfo.c
+ATL_cipmekinfo.o : \
+   $(INCAdir)/COPY/atlas_cFromANg_a1.h $(INCAdir)/COPY/atlas_cFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_cFromACg_a1.h $(INCAdir)/COPY/atlas_cFromAHg_a1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_cIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_cIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_cFromANg_aN.h $(INCAdir)/COPY/atlas_cFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_cFromACg_aN.h $(INCAdir)/COPY/atlas_cFromAHg_aN.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_cIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_cIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_cFromANg_aX.h $(INCAdir)/COPY/atlas_cFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_cFromACg_aX.h $(INCAdir)/COPY/atlas_cFromAHg_aX.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_cIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_cIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_sipmek_view.h $(INCAdir)/atlas_samm_kern.h \
+   $(mySRCdir)/ATL_ipmekinfo.c 
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_ipmekinfo.c
+ATL_cipmenUMinfo.o : \
+   $(INCAdir)/COPY/atlas_cFromANg_a1.h $(INCAdir)/COPY/atlas_cFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_cFromACg_a1.h $(INCAdir)/COPY/atlas_cFromAHg_a1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_cIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_cIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_cFromANg_aN.h $(INCAdir)/COPY/atlas_cFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_cFromACg_aN.h $(INCAdir)/COPY/atlas_cFromAHg_aN.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_cIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_cIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_cFromANg_aX.h $(INCAdir)/COPY/atlas_cFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_cFromACg_aX.h $(INCAdir)/COPY/atlas_cFromAHg_aX.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_cIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_cIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_sipmenUM_view.h $(INCAdir)/atlas_samm_kern.h \
+   $(mySRCdir)/ATL_ipmeninfo.c 
+	$(SKC) -DSCPLX=1 -DMUNUMUL_=1 -o $@ -c $(cKCFLAGS) \
+           $(mySRCdir)/ATL_ipmeninfo.c
+ATL_cipmeninfo.o : \
+   $(INCAdir)/COPY/atlas_cFromANg_a1.h $(INCAdir)/COPY/atlas_cFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_cFromACg_a1.h $(INCAdir)/COPY/atlas_cFromAHg_a1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_cIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_cIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_cFromANg_aN.h $(INCAdir)/COPY/atlas_cFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_cFromACg_aN.h $(INCAdir)/COPY/atlas_cFromAHg_aN.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_cIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_cIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_cFromANg_aX.h $(INCAdir)/COPY/atlas_cFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_cFromACg_aX.h $(INCAdir)/COPY/atlas_cFromAHg_aX.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_cIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_cIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_sipmen_view.h $(INCAdir)/atlas_samm_kern.h \
+   $(mySRCdir)/ATL_ipmeninfo.c 
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_ipmeninfo.c
+ATL_cipinfo.o : \
+   $(INCAdir)/COPY/atlas_cFromANg_a1.h $(INCAdir)/COPY/atlas_cFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_cFromACg_a1.h $(INCAdir)/COPY/atlas_cFromAHg_a1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_cIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_cIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_cFromANg_aN.h $(INCAdir)/COPY/atlas_cFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_cFromACg_aN.h $(INCAdir)/COPY/atlas_cFromAHg_aN.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_cIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_cIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_cFromANg_aX.h $(INCAdir)/COPY/atlas_cFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_cFromACg_aX.h $(INCAdir)/COPY/atlas_cFromAHg_aX.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_cIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_cIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_sipgen_view.h $(INCAdir)/atlas_samm_kern.h \
+   $(mySRCdir)/ATL_ipinfo.c 
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_ipinfo.c
+ATL_copinfo.o : \
+   $(INCAdir)/COPY/atlas_cFromANg_a1.h $(INCAdir)/COPY/atlas_cFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_cFromACg_a1.h $(INCAdir)/COPY/atlas_cFromAHg_a1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_cIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_cIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_cFromANg_aN.h $(INCAdir)/COPY/atlas_cFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_cFromACg_aN.h $(INCAdir)/COPY/atlas_cFromAHg_aN.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_cIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_cIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_cFromANg_aX.h $(INCAdir)/COPY/atlas_cFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_cFromACg_aX.h $(INCAdir)/COPY/atlas_cFromAHg_aX.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_cIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_cIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_cIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_sopgen_view.h $(INCAdir)/atlas_samm_kern.h \
+   $(mySRCdir)/ATL_opinfo.c 
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_opinfo.c
+
+ATL_cGetRankKInfo.o : $(cINCdep) $(mySRCdir)/ATL_GetRankKInfo.c
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_GetRankKInfo.c
+ATL_cGetAmmmInfo.o : $(cINCdep) $(mySRCdir)/ATL_GetAmmmInfo.c
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_GetAmmmInfo.c
+ATL_cGetAmmmInfoSQ.o : $(cINCSQdep) $(mySRCdir)/ATL_GetAmmmInfoSQ.c
+	$(SKC) -DSCPLX=1 -o $@ -c $(cKCFLAGS) $(mySRCdir)/ATL_GetAmmmInfoSQ.c
+zINCdep = $(INCSdir)/atlas_misc.h $(INCAdir)/atlas_type.h \
+          $(INCAdir)/atlas_zipgen_view.h $(INCAdir)/atlas_zopgen_view.h \
+          $(INCAdir)/atlas_zipmen_view.h $(INCAdir)/atlas_zipmek_view.h \
+          $(INCAdir)/atlas_zipnek_view.h
+zINCSQdep = $(INCSdir)/atlas_misc.h $(INCAdir)/atlas_type.h
+
+zobj = ATL_ziploops.o ATL_zoploops.o ATL_zammm.o ATL_zopinfo.o ATL_zipinfo.o \
+       ATL_zipmeninfo.o ATL_zipmenUMinfo.o ATL_zipmekinfo.o ATL_zipnekinfo.o \
+       ATL_zipsyrkinfo.o ATL_zopsyrkInfo.o ATL_zopsyr2kInfo.o \
+       ATL_zopsymmInfo.o ATL_zammmKNMK.o ATL_zammmKMNK.o ATL_zammm_rk2.o \
+       ATL_zaliased_rkK.o ATL_zammm_rkK.o ATL_zammm_IP.o ATL_zammm_tN.o
+
+zlib : zlib.grd
+	cd KERNEL ; $(PMAKE) -f dMake_amm dlib
+	cd KERNEL/ZCOPY ; $(PMAKE)
+zclean:
+	rm -f $(zobj) zlib.grd
+
+zlib.grd : $(zobj)
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) $(zobj)
+	$(RANLIB) $(ATLASlib)
+	touch zlib.grd
+ATL_zopsymmInfo.o : $(zINCdep) $(mySRCdir)/ATL_opsymmInfo.c \
+   $(INCAdir)/atlas_zamm_sum.h $(INCAdir)/atlas_zopgen_view.h 
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_opsymmInfo.c
+ATL_zopsyr2kInfo.o : $(zINCdep) $(mySRCdir)/ATL_opsyr2kInfo.c \
+   $(INCAdir)/atlas_zamm_sum.h $(INCAdir)/atlas_zopgen_view.h 
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_opsyr2kInfo.c
+ATL_zopsyrkInfo.o : $(zINCdep) $(mySRCdir)/ATL_opsyrkInfo.c \
+   $(INCAdir)/atlas_zamm_sum.h $(INCAdir)/atlas_zsyrk_view.h \
+   $(INCAdir)/atlas_zamm_sqsyrk.h $(INCAdir)/atlas_zamm_umsyrk.h 
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_opsyrkInfo.c
+ATL_zipsyrkinfo.o : $(zINCdep) $(mySRCdir)/ATL_ipsyrkinfo.c \
+   $(INCAdir)/atlas_zamm_sum.h $(INCAdir)/atlas_zsyrk_view.h \
+   $(INCAdir)/atlas_zamm_sqsyrk.h $(INCAdir)/atlas_zamm_umsyrk.h 
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_ipsyrkinfo.c
+ATL_zaliased_rkK.o : $(zINCdep) $(mySRCdir)/ATL_aliased_rkK.c \
+                    $(INCAdir)/atlas_zamm_sum.h
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_aliased_rkK.c
+ATL_zammm_rkK.o : $(zINCdep) $(mySRCdir)/ATL_ammm_rkK.c \
+                    $(INCAdir)/atlas_zamm_sum.h
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_ammm_rkK.c
+ATL_zammmKMNK.o : $(zINCdep) $(mySRCdir)/ATL_ammmKMNK.c \
+                    $(INCAdir)/atlas_zamm_sum.h
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_ammmKMNK.c
+ATL_zammmKNMK.o : $(zINCdep) $(mySRCdir)/ATL_ammmKNMK.c \
+                    $(INCAdir)/atlas_zamm_sum.h
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_ammmKNMK.c
+ATL_zammm_IP.o : $(zINCdep) $(mySRCdir)/ATL_ammm_IP.c \
+                    $(INCAdir)/atlas_zamm_sum.h
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_ammm_IP.c
+ATL_zammm.o : $(zINCdep) $(mySRCdir)/ATL_ammm.c \
+                    $(INCAdir)/atlas_zamm_sum.h
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_ammm.c
+ATL_zammm_1b.o : $(zINCdep) $(mySRCdir)/ATL_ammm_1b.c \
+                    $(INCAdir)/atlas_zamm_sum.h
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_ammm_1b.c
+ATL_zammm_tN.o : $(zINCdep) $(mySRCdir)/ATL_ammm_tN.c \
+                    $(INCAdir)/atlas_zamm_sum.h
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_ammm_tN.c
+ATL_ziploops.o : $(zINCdep) $(mySRCdir)/ATL_iploops.c \
+                    $(INCAdir)/atlas_zamm_sum.h
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_iploops.c
+ATL_zoploops.o : $(zINCdep) $(mySRCdir)/ATL_oploops.c \
+                    $(INCAdir)/atlas_zamm_sum.h
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_oploops.c
+ATL_zCopyInfo_oprk.o : $(zINCdep) $(mySRCdir)/ATL_CopyInfo_rkK.c
+	$(DKC) -DDCPLX=1 -DATL_oprk_=1 -o $@ -c $(zKCFLAGS) \
+                     -I$(INCAdir)/COPY $(mySRCdir)/ATL_CopyInfo_rkK.c
+ATL_zGetInfo_oprk.o : $(zINCdep) $(mySRCdir)/ATL_GetInfo_rkK.c
+	$(DKC) -DDCPLX=1 -DATL_oprk_=1 -o $@ -c $(zKCFLAGS) \
+                     $(mySRCdir)/ATL_GetInfo_rkK.c
+ATL_zCopyInfo_opsq.o : $(zINCdep) $(mySRCdir)/ATL_CopyInfo_rkK.c
+	$(DKC) -DDCPLX=1 -DATL_opsq_=1 -o $@ -c $(zKCFLAGS) \
+                     -I$(INCAdir)/COPY $(mySRCdir)/ATL_CopyInfo_rkK.c
+ATL_zGetInfo_opsq.o : $(zINCdep) $(mySRCdir)/ATL_GetInfo_rkK.c
+	$(DKC) -DDCPLX=1 -DATL_opsq_=1 -o $@ -c $(zKCFLAGS) \
+                     $(mySRCdir)/ATL_GetInfo_rkK.c
+ztrsmK: ATL_ztrsm_ammLL.o
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) ATL_ztrsm_ammLL.o
+	$(RANLIB) $(ATLASlib)
+ATL_ztrsm_ammLL.o : $(zINCdep) $(mySRCdir)/ATL_trsm_ammLL.c
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) \
+                     $(mySRCdir)/ATL_trsm_ammLL.c
+ATL_zipherkinfo.o : $(zINCdep) $(mySRCdir)/ATL_ipsyrkinfo.c \
+   $(INCAdir)/atlas_zamm_sum.h $(INCAdir)/atlas_zsyrk_view.h \
+   $(INCAdir)/atlas_zamm_sqsyrk.h $(INCAdir)/atlas_zamm_umsyrk.h 
+	$(DKC) -DDCPLX=1 -DConj_=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_ipsyrkinfo.c
+ATL_zammm_rk2.o : $(zINCdep) $(mySRCdir)/ATL_cammm_rk2.c \
+                    $(INCAdir)/atlas_zamm_sum.h
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_cammm_rk2.c
+ATL_zammmK.o : $(zINCdep) $(mySRCdir)/ATL_cammmK.c \
+                    $(INCAdir)/atlas_zamm_sum.h
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_cammmK.c
+ATL_zipnekinfo.o : \
+   $(INCAdir)/COPY/atlas_zFromANg_a1.h $(INCAdir)/COPY/atlas_zFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_zFromACg_a1.h $(INCAdir)/COPY/atlas_zFromAHg_a1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_zIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_zIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_zFromANg_aN.h $(INCAdir)/COPY/atlas_zFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_zFromACg_aN.h $(INCAdir)/COPY/atlas_zFromAHg_aN.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_zIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_zIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_zFromANg_aX.h $(INCAdir)/COPY/atlas_zFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_zFromACg_aX.h $(INCAdir)/COPY/atlas_zFromAHg_aX.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_zIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_zIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_dipnek_view.h $(INCAdir)/atlas_damm_kern.h \
+   $(mySRCdir)/ATL_ipnekinfo.c 
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_ipnekinfo.c
+ATL_zipmekinfo.o : \
+   $(INCAdir)/COPY/atlas_zFromANg_a1.h $(INCAdir)/COPY/atlas_zFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_zFromACg_a1.h $(INCAdir)/COPY/atlas_zFromAHg_a1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_zIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_zIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_zFromANg_aN.h $(INCAdir)/COPY/atlas_zFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_zFromACg_aN.h $(INCAdir)/COPY/atlas_zFromAHg_aN.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_zIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_zIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_zFromANg_aX.h $(INCAdir)/COPY/atlas_zFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_zFromACg_aX.h $(INCAdir)/COPY/atlas_zFromAHg_aX.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_zIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_zIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_dipmek_view.h $(INCAdir)/atlas_damm_kern.h \
+   $(mySRCdir)/ATL_ipmekinfo.c 
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_ipmekinfo.c
+ATL_zipmenUMinfo.o : \
+   $(INCAdir)/COPY/atlas_zFromANg_a1.h $(INCAdir)/COPY/atlas_zFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_zFromACg_a1.h $(INCAdir)/COPY/atlas_zFromAHg_a1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_zIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_zIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_zFromANg_aN.h $(INCAdir)/COPY/atlas_zFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_zFromACg_aN.h $(INCAdir)/COPY/atlas_zFromAHg_aN.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_zIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_zIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_zFromANg_aX.h $(INCAdir)/COPY/atlas_zFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_zFromACg_aX.h $(INCAdir)/COPY/atlas_zFromAHg_aX.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_zIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_zIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_dipmenUM_view.h $(INCAdir)/atlas_damm_kern.h \
+   $(mySRCdir)/ATL_ipmeninfo.c 
+	$(DKC) -DDCPLX=1 -DMUNUMUL_=1 -o $@ -c $(zKCFLAGS) \
+           $(mySRCdir)/ATL_ipmeninfo.c
+ATL_zipmeninfo.o : \
+   $(INCAdir)/COPY/atlas_zFromANg_a1.h $(INCAdir)/COPY/atlas_zFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_zFromACg_a1.h $(INCAdir)/COPY/atlas_zFromAHg_a1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_zIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_zIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_zFromANg_aN.h $(INCAdir)/COPY/atlas_zFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_zFromACg_aN.h $(INCAdir)/COPY/atlas_zFromAHg_aN.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_zIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_zIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_zFromANg_aX.h $(INCAdir)/COPY/atlas_zFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_zFromACg_aX.h $(INCAdir)/COPY/atlas_zFromAHg_aX.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_zIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_zIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_dipmen_view.h $(INCAdir)/atlas_damm_kern.h \
+   $(mySRCdir)/ATL_ipmeninfo.c 
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_ipmeninfo.c
+ATL_zipinfo.o : \
+   $(INCAdir)/COPY/atlas_zFromANg_a1.h $(INCAdir)/COPY/atlas_zFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_zFromACg_a1.h $(INCAdir)/COPY/atlas_zFromAHg_a1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_zIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_zIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_zFromANg_aN.h $(INCAdir)/COPY/atlas_zFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_zFromACg_aN.h $(INCAdir)/COPY/atlas_zFromAHg_aN.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_zIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_zIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_zFromANg_aX.h $(INCAdir)/COPY/atlas_zFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_zFromACg_aX.h $(INCAdir)/COPY/atlas_zFromAHg_aX.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_zIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_zIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_dipgen_view.h $(INCAdir)/atlas_damm_kern.h \
+   $(mySRCdir)/ATL_ipinfo.c 
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_ipinfo.c
+ATL_zopinfo.o : \
+   $(INCAdir)/COPY/atlas_zFromANg_a1.h $(INCAdir)/COPY/atlas_zFromATg_a1.h \
+   $(INCAdir)/COPY/atlas_zFromACg_a1.h $(INCAdir)/COPY/atlas_zFromAHg_a1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_a1b0.h $(INCAdir)/COPY/atlas_zIntoCNg_a1b1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_a1b1.h $(INCAdir)/COPY/atlas_zIntoCNg_a1bX.h \
+   $(INCAdir)/COPY/atlas_zFromANg_aN.h $(INCAdir)/COPY/atlas_zFromATg_aN.h \
+   $(INCAdir)/COPY/atlas_zFromACg_aN.h $(INCAdir)/COPY/atlas_zFromAHg_aN.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aNb0.h $(INCAdir)/COPY/atlas_zIntoCNg_aNb1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aNb1.h $(INCAdir)/COPY/atlas_zIntoCNg_aNbX.h \
+   $(INCAdir)/COPY/atlas_zFromANg_aX.h $(INCAdir)/COPY/atlas_zFromATg_aX.h \
+   $(INCAdir)/COPY/atlas_zFromACg_aX.h $(INCAdir)/COPY/atlas_zFromAHg_aX.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aXb0.h $(INCAdir)/COPY/atlas_zIntoCNg_aXb1.h \
+   $(INCAdir)/COPY/atlas_zIntoCNg_aXb1.h $(INCAdir)/COPY/atlas_zIntoCNg_aXbX.h \
+   $(INCAdir)/atlas_dopgen_view.h $(INCAdir)/atlas_damm_kern.h \
+   $(mySRCdir)/ATL_opinfo.c 
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_opinfo.c
+
+ATL_zGetRankKInfo.o : $(zINCdep) $(mySRCdir)/ATL_GetRankKInfo.c
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_GetRankKInfo.c
+ATL_zGetAmmmInfo.o : $(zINCdep) $(mySRCdir)/ATL_GetAmmmInfo.c
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_GetAmmmInfo.c
+ATL_zGetAmmmInfoSQ.o : $(zINCSQdep) $(mySRCdir)/ATL_GetAmmmInfoSQ.c
+	$(DKC) -DDCPLX=1 -o $@ -c $(zKCFLAGS) $(mySRCdir)/ATL_GetAmmmInfoSQ.c
+

@@ -1,0 +1,3980 @@
+include Make.inc
+mySRCdir = $(SRCdir)/tune/blas/gemm
+
+default : xmmsearch
+$(SYSdir)/time.o:
+	cd $(SYSdir) ; $(MAKE) time.o
+
+$(INCAdir)/atlas_type.h : 
+	cd $(SYSdir) ; $(MAKE) RunTyp
+
+$(SYSdir)/res/L1CacheSize :
+	rm -f res/L1CacheSize
+	cd $(SYSdir) ; $(MAKE) res/L1CacheSize
+	
+RunL1 : force_build
+	$(MAKE) $(SYSdir)/res/L1CacheSize 
+	ln -s $(SYSdir)/res/L1CacheSize res/L1CacheSize
+
+RunTLB : 
+	cd $(SYSdir) ; $(MAKE) RunTLB
+
+$(SYSdir)/res/$(pre)MULADD : 
+	rm -f res/$(pre)MULADD
+	cd $(SYSdir) ; $(MAKE) res/$(pre)MULADD pre=$(pre) nreg=$(nreg)
+RunMulAdd: $(SYSdir)/res/$(pre)MULADD
+	ln -s $(SYSdir)/res/$(pre)MULADD res/$(pre)MULADD
+
+RunTyp: force_build
+	cd $(SYSdir) ; $(MAKE) RunTyp
+
+
+
+
+L3INCdep = $(INCSdir)/atlas_misc.h $(INCSdir)/atlas_lvl3.h \
+           $(INCSdir)/atlas_f77.h $(INCAdir)/atlas_type.h
+parsedeps = $(INCSdir)/atlas_mmparse.h $(INCSdir)/atlas_mmtesttime.h \
+            $(INCSdir)/atlas_genparse.h $(INCSdir)/atlas_gentesttime.h \
+            $(INCSdir)/atlas_mmgen.h $(INCSdir)/atlas_cpparse.h \
+            $(INCSdir)/atlas_cptesttime.h
+basf = $(mySRCdir)/atlas-mmg.base
+trmmbasf = $(mySRCdir)/trmm-micro-cpg.base
+trsmbasf = $(mySRCdir)/atlas-smg.base
+fkob = $(mySRCdir)/fko_atlas-mmkg.base
+extC = $(BINdir)/xextract -b $(basf) -langC
+extT = $(BINdir)/xextract -b $(trmmbasf) -langC
+extB = $(BINdir)/xextract -b $(fkob) -langC 
+ptmp=ATL_ptmp.c
+ctmp=ATL_smctmp
+if = -1
+nf = 0
+ff = 0
+beta = 1
+ldc = $(nb)
+regs = 32
+nb = 28
+mmrout=JIKNBmm
+ID=25
+TO_BLK=0
+TRANS=0
+szb=0
+
+pre = d
+muladd = 1
+ta = t
+tb = n
+lat = 4
+mu = 4
+nu = 2
+ku = 1
+kp = $(ku)
+nb = 4
+mb = $(nb)
+kb = $(nb)
+KB=0
+M = $(mb)
+N = $(nb)
+K = $(kb)
+csA = 1
+csB = 1
+csC = 1
+alpha = 1
+beta = 1
+betan=$(beta)
+alphan=$(alpha)
+loopO = JIK
+F0 = 16
+FN = 0
+kmoves = -DATL_MOVEA -DATL_MOVEB    # ammm kernels take this form
+cleanup = 0
+casnam =
+bnb = 28
+mmrout = $(pre)mm0.c
+mmlib =
+pf=0      # bitpattern controlling prefetch, see atlas-mmkg.base for details
+pfLS=64   # prefetch line size in bytes 
+pfA = 0
+dupB=1
+nreg=0
+kmaj=0
+mvA=1
+mvB=1
+mvC=0
+CFLUSH="-1"
+outF=
+bcast=1
+vlen=1
+cpvlen=1
+extdefs=
+knam=ATL_USERCPMM
+szExtra=0
+FMF=2000.0
+FMFS=-R $(FMF)
+NRF=-1  # change to -2 to get unconstrained MB
+blk2C=def
+C2blk=def
+CM2blk=def
+RM2blk=def
+minsz=576
+CPM=C
+CNJ=
+SD=L
+cx=
+
+help :
+	@@echo "SEE ALSO: make cpyhelp make trsmhelp"
+	@@echo "flags for amm kerns preMCFLAGS='', else preKCFLAGS=''\n"
+	@@echo "make PREammmtst mu=X nu=X M=X N=X K=X kmaj=<0/VL> mmrout=<FILE>\n"
+	@@echo "make xPREammtime_pt mmrout=FILENAME mu=X nu=X ku=X mb=X nb=X kb=X M=X N=X K=X\n"
+	@@echo "make gen_amm_[sse,avx,gvec,scalar] mu=X nu=X vlen=VL kmaj=VL rt=FILE\n"
+	@@echo "make gen_amsyrk rt= pre= vec=[no,kdim,mdim] mu= nu= ku= bcast="
+
+cpyhelp :
+	@@echo "make PREcopytest kfnam=FILENAME UR=X ku=X kmaj=[0,VLEN] alpha=[0,1,-1,2] beta=[0,1,-1,2] TOBLK=[0,1] TRANS=0,1 [CNJ='-DConj_=1']"
+	@@echo "make PREcpytime kfnam=FILENAME mu=X nu=X knam=ROUTINE_NAME ta=[N,T] betan=[X,1,n] TOBLK=[0,1]"
+	@@echo "-->can take MTXD '-D M lda N COLWISE'\n"
+	@@echo "make PREcpytest TRANS=[0,1] TO_BLK=[0,1] CPM=[C,A] [CNJ=-DConj_=1] sz=<bsz> alphan=[1,N,X] betan=[0,1,N,X] [CNJ="-DConj_=1" kfnam=<cp2test> cpgood=<good cp>"
+	@@echo "make PREammmcpytst [blk2C=rt] [CM2blk=rt] mu= nu= alpha= beta= vlen="
+	@@echo "make gen_[sy,]blk2C rt= pre= vlen= mu= nu= cpvlen= beta= alpha="
+	@@echo "make gen_[sy,]C2blk rt= pre= vlen= mu= nu= cpvlen= beta= alpha="
+	@@echo "make gen_A[T,N]2blk rt= kmaj= UR= alpha="
+	@@echo "make gen_A[T,N]2blk rt= kmaj= UR= alpha="
+	@@echo "make gen_cA[T,N]2blk rt= kmaj= UR= alpha= rout=FUNCNM"
+
+trsmhelp :
+	@@echo "make gen_ntrsm_cpC tALL=[T,N] mu=# nu=# rt=filename.h"
+	@@echo "make gen_ntrsm sd=[L,R] up=[L,U] ta=[N,T] U=# rt=filename.h"
+	@@echo "make gen_cntrsm sd=[L,R] up=[L,U] ta=[N,T] U=# rt=filename.h"
+	@@echo "make genall_ntrsm sd=[L,R] up=[L,U] ta=[N,T] tALL=[N,T] mu=# nu=# rt=fnam"
+	@@echo "make genall_cntrsm sd=[L,R] up=[L,U] ta=[N,T] tALL=[N,T] mu=# nu=# rt=fnam"
+	@@echo "make PREtrsmcase mmrout=FILE mu=X nu=X ku=X rb=X kb=X sd=[L,R] up=[U,L] ta=[T,N] tALL=[T,N] kmaj=#"
+trmmhelp :
+	@@echo "make PREtrmmcase mmrout=FILE mu=X nu=X ku=X rb=X kb=X sd=[L,R] up=[U,L] ta=[T,N] vec=[mdim, kdim] vlen=# kmaj=#"
+
+DoSzBlk :
+	rm -f szblk.c xszblk
+	echo "int getsz(int M, int N, int mu, int nu, int vlen)" > szblk.c
+	echo "{return(${szfunc});}" >> szblk.c
+	cat $(mySRCdir)/szblk.c >> szblk.c
+	$(XCC) $(XCCFLAGS) -o xszblk szblk.c
+	./xszblk $(mb) $(nb) $(mu) $(nu) $(vlen)
+
+res/L1CacheSize :
+	$(MAKE) RunL1
+
+res/$(pre)MULADD : $(SYSdir)/res/$(pre)MULADD 
+RunFindCE :
+	$(MAKE) dRunFindCE
+
+res/atlas_cacheedge.h :
+	$(MAKE) $(pre)RunFindCE
+
+res/goodgcc.txt :
+	echo "'$(GOODGCC)'" > res/goodgcc.txt
+$(BINdir)/xextract :
+	cd $(BINdir) ; $(MAKE) xextract
+
+C2blk_sse : $(basf) force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def alpha "${alpha}" \
+                -def beta "${beta}" rout=C2blk_sse -o $(rt)
+blk2C_sse : $(basf) force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def alpha "${alpha}" \
+                -def beta "${beta}" rout=blk2C_sse -o $(rt)
+C2blk_avx : $(basf) force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def alpha "${alpha}" \
+                -def beta "${beta}" rout=C2blk_avx -o $(rt)
+blk2C_avx : $(basf) force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def alpha "${alpha}" \
+                -def beta "${beta}" rout=blk2C_avx -o $(rt)
+
+ATL_crm2am_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_crm2am_a$(al)_$(UR).c rout=ATL_crm2am
+ATL_ccm2am_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_ccm2am_a$(al)_$(UR).c rout=ATL_ccm2am
+ATL_cam2rm_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_cam2rm_a$(al)_$(UR).c rout=ATL_cam2rm
+ATL_cam2cm_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_cam2cm_a$(al)_$(UR).c rout=ATL_cam2cm
+ATL_cablk2cmat_${mu}x${nu}_a$(al)_b$(be).c : $(basf) force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def alpha "${alpha}" \
+                -def beta "${beta}" rout=ATL_cablk2cmat \
+                -o ATL_cablk2cmat_${mu}x${nu}_a$(al)_b$(be).c
+ATL_ccmat2ablk_${mu}x${nu}_a$(al)_b$(be).c : $(basf) force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def alpha "${alpha}" \
+                -def beta "${beta}" rout=ATL_ccmat2ablk \
+                -o ATL_ccmat2ablk_${mu}x${nu}_a$(al)_b$(be).c
+ATL_zrm2am_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_zrm2am_a$(al)_$(UR).c rout=ATL_crm2am
+ATL_zcm2am_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_zcm2am_a$(al)_$(UR).c rout=ATL_ccm2am
+ATL_zam2rm_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_zam2rm_a$(al)_$(UR).c rout=ATL_cam2rm
+ATL_zam2cm_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_zam2cm_a$(al)_$(UR).c rout=ATL_cam2cm
+ATL_zablk2cmat_${mu}x${nu}_a$(al)_b$(be).c : $(basf) force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def alpha "${alpha}" \
+                -def beta "${beta}" rout=ATL_cablk2cmat \
+                -o ATL_zablk2cmat_${mu}x${nu}_a$(al)_b$(be).c
+ATL_zcmat2ablk_${mu}x${nu}_a$(al)_b$(be).c : $(basf) force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def alpha "${alpha}" \
+                -def beta "${beta}" rout=ATL_ccmat2ablk \
+                -o ATL_zcmat2ablk_${mu}x${nu}_a$(al)_b$(be).c
+genall_syblk2C: $(BINdir)/xextract $(mySRCdir)/micro-cpg.base
+	- rm -f ATL_tmp.c $(rt)
+	touch $(rt)
+	echo "#if defined(BETAX) && defined(ALPHAX)" >> $(rt)
+	make gen_syblk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=2 alpha=2
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETAX) && defined(ALPHAN1)" >> $(rt)
+	make gen_syblk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=2 alpha=-1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETAX) && defined(ALPHA1)" >> $(rt)
+	make gen_syblk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=2 alpha=1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETAN1) && defined(ALPHAX)" >> $(rt)
+	make gen_syblk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=-1 alpha=2
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETAN1) && defined(ALPHAN1)" >> $(rt)
+	make gen_syblk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=-1 alpha=-1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETAN1) && defined(ALPHA1)" >> $(rt)
+	make gen_syblk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=-1 alpha=1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA1) && defined(ALPHAX)" >> $(rt)
+	make gen_syblk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=1 alpha=2
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA1) && defined(ALPHAN1)" >> $(rt)
+	make gen_syblk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=1 alpha=-1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA1) && defined(ALPHA1)" >> $(rt)
+	make gen_syblk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=1 alpha=1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA0) && defined(ALPHAX)" >> $(rt)
+	make gen_syblk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=0 alpha=2
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA0) && defined(ALPHAN1)" >> $(rt)
+	make gen_syblk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=0 alpha=-1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA0) && defined(ALPHA1)" >> $(rt)
+	make gen_syblk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=0 alpha=1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	- rm -f ATL_tmp.c
+genall_C2blk: $(BINdir)/xextract $(mySRCdir)/micro-cpg.base
+	- rm -f ATL_tmp.c $(rt)
+	touch $(rt)
+	echo "#if defined(BETAX) && defined(ALPHAX)" >> $(rt)
+	make gen_C2blk rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=2 alpha=2
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETAX) && defined(ALPHAN1)" >> $(rt)
+	make gen_C2blk rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=2 alpha=-1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETAX) && defined(ALPHA1)" >> $(rt)
+	make gen_C2blk rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=2 alpha=1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETAN1) && defined(ALPHAX)" >> $(rt)
+	make gen_C2blk rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=-1 alpha=2
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETAN1) && defined(ALPHAN1)" >> $(rt)
+	make gen_C2blk rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=-1 alpha=-1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETAN1) && defined(ALPHA1)" >> $(rt)
+	make gen_C2blk rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=-1 alpha=1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA1) && defined(ALPHAX)" >> $(rt)
+	make gen_C2blk rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=1 alpha=2
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA1) && defined(ALPHAN1)" >> $(rt)
+	make gen_C2blk rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=1 alpha=-1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA1) && defined(ALPHA1)" >> $(rt)
+	make gen_C2blk rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=1 alpha=1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA0) && defined(ALPHAX)" >> $(rt)
+	make gen_C2blk rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=0 alpha=2
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA0) && defined(ALPHAN1)" >> $(rt)
+	make gen_C2blk rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=0 alpha=-1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA0) && defined(ALPHA1)" >> $(rt)
+	make gen_C2blk rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=0 alpha=1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	- rm -f ATL_tmp.c
+genall_blk2C: $(BINdir)/xextract $(mySRCdir)/micro-cpg.base
+	- rm -f ATL_tmp.c $(rt)
+	touch $(rt)
+	echo "#if defined(BETAX) && defined(ALPHAX)" >> $(rt)
+	make gen_blk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=2 alpha=2
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETAX) && defined(ALPHAN1)" >> $(rt)
+	make gen_blk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=2 alpha=-1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETAX) && defined(ALPHA1)" >> $(rt)
+	make gen_blk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=2 alpha=1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETAN1) && defined(ALPHAX)" >> $(rt)
+	make gen_blk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=-1 alpha=2
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETAN1) && defined(ALPHAN1)" >> $(rt)
+	make gen_blk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=-1 alpha=-1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETAN1) && defined(ALPHA1)" >> $(rt)
+	make gen_blk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=-1 alpha=1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA1) && defined(ALPHAX)" >> $(rt)
+	make gen_blk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=1 alpha=2
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA1) && defined(ALPHAN1)" >> $(rt)
+	make gen_blk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=1 alpha=-1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA1) && defined(ALPHA1)" >> $(rt)
+	make gen_blk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=1 alpha=1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA0) && defined(ALPHAX)" >> $(rt)
+	make gen_blk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=0 alpha=2
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA0) && defined(ALPHAN1)" >> $(rt)
+	make gen_blk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=0 alpha=-1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	echo "#if defined(BETA0) && defined(ALPHA1)" >> $(rt)
+	make gen_blk2C rt=ATL_tmp.c pre=$(pre) vlen=$(vlen) mu=$(mu) \
+             nu=$(nu) cpvlen=$(cpvlen) beta=0 alpha=1
+	cat ATL_tmp.c >> $(rt)
+	echo "#endif" >> $(rt)
+	- rm -f ATL_tmp.c
+gen_C2blk : $(BINdir)/xextract $(mySRCdir)/micro-cpg.base
+	$(extC) -b $(mySRCdir)/micro-cpg.base -o $(rt) pre=$(pre) vec=NA \
+                rout=C2blk -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def cpvl $(cpvlen) -def beta $(beta) -def alpha $(alpha)
+gen_blk2C : $(BINdir)/xextract $(mySRCdir)/micro-cpg.base
+	$(extC) -b $(mySRCdir)/micro-cpg.base -o $(rt) pre=$(pre) vec=NA \
+                rout=blk2C -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def cpvl $(cpvlen) -def beta $(beta) -def alpha $(alpha)
+gen_syC2blk : $(BINdir)/xextract $(mySRCdir)/micro-cpg.base
+	$(extC) -b $(mySRCdir)/micro-cpg.base -o $(rt) pre=$(pre) vec=NA \
+                rout=C2blk -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def cpvl $(cpvlen) -def beta $(beta) -def alpha $(alpha) \
+                -def TRI 1
+gen_syblk2C : $(BINdir)/xextract $(mySRCdir)/micro-cpg.base
+	$(extC) -b $(mySRCdir)/micro-cpg.base -o $(rt) pre=$(pre) vec=NA \
+                rout=blk2C -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def cpvl $(cpvlen) -def beta $(beta) -def alpha $(alpha) \
+                -def TRI 1
+genall_cA2blk:
+	- rm -f ATL_tmp.c $(rt)
+	touch $(rt)
+	echo "#ifdef TRANST_" >> $(rt)
+	echo "   #if defined(ALPHAX)" >> $(rt)
+	make gen_cAT2blk UR=$(UR) alpha=2 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAX */" >> $(rt)
+	echo "   #if defined(ALPHAN1)" >> $(rt)
+	make gen_cAT2blk UR=$(UR) alpha=-1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAN1 */" >> $(rt)
+	echo "   #if defined(ALPHA1)" >> $(rt)
+	make gen_cAT2blk UR=$(UR) alpha=1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHA1 */" >> $(rt)
+	echo "#endif /* end TRANST_ */" >> $(rt)
+	echo "#ifdef TRANSN_" >> $(rt)
+	echo "   #if defined(ALPHAX)" >> $(rt)
+	make gen_cAN2blk UR=$(UR) alpha=2 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAX */" >> $(rt)
+	echo "   #if defined(ALPHAN1)" >> $(rt)
+	make gen_cAN2blk UR=$(UR) alpha=-1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAN1 */" >> $(rt)
+	echo "   #if defined(ALPHA1)" >> $(rt)
+	make gen_cAN2blk UR=$(UR) alpha=1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHA1 */" >> $(rt)
+	echo "#endif /* end TRANSN_ */" >> $(rt)
+genall_cblk2A:
+	- rm -f ATL_tmp.c $(rt)
+	touch $(rt)
+	echo "#ifdef TRANST_" >> $(rt)
+	echo "   #if defined(ALPHAX)" >> $(rt)
+	make gen_cblk2AT UR=$(UR) alpha=2 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAX */" >> $(rt)
+	echo "   #if defined(ALPHAN1)" >> $(rt)
+	make gen_cblk2AT UR=$(UR) alpha=-1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAN1 */" >> $(rt)
+	echo "   #if defined(ALPHA1)" >> $(rt)
+	make gen_cblk2AT UR=$(UR) alpha=1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHA1 */" >> $(rt)
+	echo "#endif /* end TRANST_ */" >> $(rt)
+	echo "#ifdef TRANSN_" >> $(rt)
+	echo "   #if defined(ALPHAX)" >> $(rt)
+	make gen_cblk2AN UR=$(UR) alpha=2 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAX */" >> $(rt)
+	echo "   #if defined(ALPHAN1)" >> $(rt)
+	make gen_cblk2AN UR=$(UR) alpha=-1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAN1 */" >> $(rt)
+	echo "   #if defined(ALPHA1)" >> $(rt)
+	make gen_cblk2AN UR=$(UR) alpha=1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHA1 */" >> $(rt)
+	echo "#endif /* end TRANSN_ */" >> $(rt)
+gen_cAT2blk : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_crm2am
+gen_cAN2blk : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_ccm2am
+gen_cblk2AT : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_cam2rm
+gen_cblk2AN : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_cam2cm
+gen_ctAT2blk : $(trmmbasf) force_build
+	$(extT) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_crm2am
+gen_ctAN2blk : $(trmmbasf) force_build
+	$(extT) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_ccm2am
+gen_ctblk2AT : $(trmmbasf) force_build
+	$(extT) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_cam2rm
+gen_ctblk2AN : $(trmmbasf) force_build
+	$(extT) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_cam2cm
+genall_A2blk:
+	- rm -f ATL_tmp.c $(rt)
+	touch $(rt)
+	echo "#ifdef TRANST_" >> $(rt)
+	echo "   #if defined(ALPHAX)" >> $(rt)
+	make gen_AT2blk UR=$(UR) alpha=2 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAX */" >> $(rt)
+	echo "   #if defined(ALPHAN1)" >> $(rt)
+	make gen_AT2blk UR=$(UR) alpha=-1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAN1 */" >> $(rt)
+	echo "   #if defined(ALPHA1)" >> $(rt)
+	make gen_AT2blk UR=$(UR) alpha=1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHA1 */" >> $(rt)
+	echo "#endif /* end TRANST_ */" >> $(rt)
+	echo "#ifdef TRANSN_" >> $(rt)
+	echo "   #if defined(ALPHAX)" >> $(rt)
+	make gen_AN2blk UR=$(UR) alpha=2 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAX */" >> $(rt)
+	echo "   #if defined(ALPHAN1)" >> $(rt)
+	make gen_AN2blk UR=$(UR) alpha=-1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAN1 */" >> $(rt)
+	echo "   #if defined(ALPHA1)" >> $(rt)
+	make gen_AN2blk UR=$(UR) alpha=1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHA1 */" >> $(rt)
+	echo "#endif /* end TRANSN_ */" >> $(rt)
+genall_blk2A:
+	- rm -f ATL_tmp.c $(rt)
+	touch $(rt)
+	echo "#ifdef TRANST_" >> $(rt)
+	echo "   #if defined(ALPHAX)" >> $(rt)
+	make gen_blk2AT UR=$(UR) alpha=2 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAX */" >> $(rt)
+	echo "   #if defined(ALPHAN1)" >> $(rt)
+	make gen_blk2AT UR=$(UR) alpha=-1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAN1 */" >> $(rt)
+	echo "   #if defined(ALPHA1)" >> $(rt)
+	make gen_blk2AT UR=$(UR) alpha=1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHA1 */" >> $(rt)
+	echo "#endif /* end TRANST_ */" >> $(rt)
+	echo "#ifdef TRANSN_" >> $(rt)
+	echo "   #if defined(ALPHAX)" >> $(rt)
+	make gen_blk2AN UR=$(UR) alpha=2 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAX */" >> $(rt)
+	echo "   #if defined(ALPHAN1)" >> $(rt)
+	make gen_blk2AN UR=$(UR) alpha=-1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHAN1 */" >> $(rt)
+	echo "   #if defined(ALPHA1)" >> $(rt)
+	make gen_blk2AN UR=$(UR) alpha=1 dupB=$(dupB) \
+             kmaj=$(kmaj) rt=ATL_tmp.c
+	cat ATL_tmp.c >> $(rt)
+	echo "   #endif /* end ALPHA1 */" >> $(rt)
+	echo "#endif /* end TRANSN_ */" >> $(rt)
+gen_AT2blk : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_rm2am
+gen_AN2blk : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_cm2am
+gen_blk2AT : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_am2rm
+gen_blk2AN : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_am2cm
+gen_tAT2blk : $(trmmbasf) force_build
+	$(extT) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_rm2am
+gen_tAN2blk : $(trmmbasf) force_build
+	$(extT) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_cm2am
+gen_tblk2AT : $(trmmbasf) force_build
+	$(extT) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_am2rm
+gen_tblk2AN : $(trmmbasf) force_build
+	$(extT) -def mu "${UR}" -def nu "${UR}" -def ku "${ku}" \
+        -def alpha "${alpha}" -def dupB "${dupB}" -def kmaj "${kmaj}" \
+        -o $(rt) rout=ATL_am2cm
+ATL_srm2am_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_srm2am_a$(al)_$(UR).c rout=ATL_rm2am
+ATL_scm2am_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_scm2am_a$(al)_$(UR).c rout=ATL_cm2am
+ATL_sam2rm_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_sam2rm_a$(al)_$(UR).c rout=ATL_am2rm
+ATL_sam2cm_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_sam2cm_a$(al)_$(UR).c rout=ATL_am2cm
+ATL_sablk2cmat_${mu}x${nu}_a$(al)_b$(be).c : $(basf) force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def alpha "${alpha}" \
+                -def beta "${beta}" rout=ATL_ablk2cmat \
+                -o ATL_sablk2cmat_${mu}x${nu}_a$(al)_b$(be).c
+ATL_scmat2ablk_${mu}x${nu}_a$(al)_b$(be).c : $(basf) force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def alpha "${alpha}" \
+                -def beta "${beta}" rout=ATL_cmat2ablk \
+                -o ATL_scmat2ablk_${mu}x${nu}_a$(al)_b$(be).c
+ATL_drm2am_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_drm2am_a$(al)_$(UR).c rout=ATL_rm2am
+ATL_dcm2am_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_dcm2am_a$(al)_$(UR).c rout=ATL_cm2am
+ATL_dam2rm_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_dam2rm_a$(al)_$(UR).c rout=ATL_am2rm
+ATL_dam2cm_a$(al)_$(UR).c : $(basf) force_build
+	$(extC) -def mu "${UR}" -def nu "${UR}" -def alpha "${alpha}" \
+                -def dupB "${dupB}" -def kmaj "${kmaj}" \
+                -o ATL_dam2cm_a$(al)_$(UR).c rout=ATL_am2cm
+ATL_dablk2cmat_${mu}x${nu}_a$(al)_b$(be).c : $(basf) force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def alpha "${alpha}" \
+                -def beta "${beta}" rout=ATL_ablk2cmat \
+                -o ATL_dablk2cmat_${mu}x${nu}_a$(al)_b$(be).c
+ATL_dcmat2ablk_${mu}x${nu}_a$(al)_b$(be).c : $(basf) force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def alpha "${alpha}" \
+                -def beta "${beta}" rout=ATL_cmat2ablk \
+                -o ATL_dcmat2ablk_${mu}x${nu}_a$(al)_b$(be).c
+xprefparse : $(mySRCdir)/prefparse.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/prefparse.c
+xucpytest :  $(mySRCdir)/ucpytest.c $(parsedeps) $(INCSdir)/atlas_mmgen.h
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/ucpytest.c -lm
+xcpyfvw :  $(mySRCdir)/cpyfvw.c $(parsedeps) $(INCSdir)/atlas_mmgen.h
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/cpyfvw.c -lm
+xcphgen :  $(mySRCdir)/cphgen.c $(parsedeps) $(INCSdir)/atlas_mmgen.h
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/cphgen.c -lm
+xcpygen :  $(mySRCdir)/cpygen.c $(parsedeps) $(INCSdir)/atlas_mmgen.h
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/cpygen.c -lm
+xcpydrv :  $(mySRCdir)/cpydrv.c $(parsedeps) $(INCSdir)/atlas_mmgen.h \
+           xcpygen xcphgen xcpysearch
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/cpydrv.c -lm
+xammkgen :  $(mySRCdir)/ammkgen.c $(parsedeps) $(INCSdir)/atlas_mmgen.h
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/ammkgen.c -lm
+xammgen :  $(mySRCdir)/ammgen.c $(parsedeps) $(INCSdir)/atlas_mmgen.h
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/ammgen.c -lm
+xuammgen :  $(mySRCdir)/uammgen.c $(parsedeps) $(INCSdir)/atlas_mmgen.h
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/uammgen.c -lm
+xtrmmgen : $(mySRCdir)/trmmgen.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/trmmgen.c -lm
+xemit_amm : $(mySRCdir)/emit_amm.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/emit_amm.c -lm
+xemit_uamm : $(mySRCdir)/emit_uamm.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/emit_uamm.c -lm
+xcpysearch : $(mySRCdir)/cpysearch.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/cpysearch.c -lm
+xuammsrch : $(mySRCdir)/uammsrch.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/uammsrch.c -lm
+xgmmsearch : $(mySRCdir)/gmmsearch.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/gmmsearch.c -lm
+xuammsearch : $(mySRCdir)/uammsearch.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/uammsearch.c -lm
+xammsearch : $(mySRCdir)/ammsearch.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/ammsearch.c -lm
+xaddKClean : $(mySRCdir)/addKClean.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/addKClean.c -lm
+xammk1srch : $(mySRCdir)/ammk1srch.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/ammk1srch.c -lm
+xbfisrch : $(mySRCdir)/bfisrch.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/bfisrch.c -lm
+xtrsmsrch : $(mySRCdir)/trsmsrch.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/trsmsrch.c -lm
+xtrmmview : $(mySRCdir)/trmmview.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/trmmview.c -lm
+xtrsmgen : $(mySRCdir)/trsmgen.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/trsmgen.c -lm
+xopsrch : $(mySRCdir)/opsrch.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/opsrch.c -lm
+xipsrch : $(mySRCdir)/ipsrch.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/ipsrch.c -lm
+# vec=[no,kdim,mdim]
+gen_amsyrk : $(BINdir)/xextract
+	$(extC) -b $(mySRCdir)/micro-kg.base -o $(rt) pre=$(pre) vec=$(vec) \
+           rout=amm -def vl $(vlen) -def mu $(mu) -def nu $(nu) -def ku $(ku) \
+           -def kp $(kp) -def bc $(bcast) -def kb $(KB) \
+           -def pf $(pf) -def pfLS $(pfLS) -def TRI 1
+gen_amsyrk_fko : $(BINdir)/xextract
+	$(extB) -o $(rt) pre=$(pre) vec=$(vec) \
+           rout=amm -def vl $(vlen) -def mu $(mu) -def nu $(nu) -def ku $(ku) \
+           -def kp $(kp) -def bc $(bcast) -def kb $(KB) \
+           -def pf $(pf) -def pfLS $(pfLS) -def TRI 1
+gen_amm : $(BINdir)/xextract
+	$(extC) -b $(mySRCdir)/micro-kg.base -o $(rt) pre=$(pre) vec=$(vec) \
+           rout=amm -def vl $(vlen) -def mu $(mu) -def nu $(nu) -def ku $(ku) \
+           -def kp $(kp) -def bc $(bcast) -def kb $(KB) \
+           -def pf $(pf) -def pfLS $(pfLS) -def TRI 0
+gen_amm_fko : $(BINdir)/xextract
+	$(extB) -o $(rt) pre=$(pre) vec=$(vec) \
+           rout=amm -def vl $(vlen) -def mu $(mu) -def nu $(nu) -def ku $(ku) \
+           -def kp $(kp) -def bc $(bcast) -def kb $(KB) \
+           -def pf $(pf) -def pfLS $(pfLS) -def TRI 0
+gen_amm_sse : $(BINdir)/xextract
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def kmaj "${kmaj}" \
+                rout=ATL_mm${kmaj}_${mu}x${nu}_1_sse -o $(rt) \
+                -def kb "${kb}" -def vlen "${vlen}" -def dupB "${dupB}"
+gen_amm_avxz : $(BINdir)/xextract force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def kb "${kb}" \
+                 rout=ATL_mm${kmaj}_${mu}x${nu}_1_avxz -def vlen "${vlen}" \
+                 -def kmaj ${kmaj} -o $(rt)
+gen_amm_avx : $(BINdir)/xextract force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def kb "${kb}" \
+                 rout=ATL_mm${kmaj}_${mu}x${nu}_1_avx -def vlen "${vlen}" \
+                 -def kmaj ${kmaj} -o $(rt)
+gen_amm_gvec: $(BINdir)/xextract force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" \
+                rout=ATL_mm${kmaj}_${mu}x${nu}_gvec -def kmaj ${kmaj} \
+                -def kb "${kb}" -def vlen "${vlen}" -o $(rt)
+gen_amm_scalar : $(BINdir)/xextract force_build
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def kb "${kb}" -o $(rt) \
+                -def kmaj "${kmaj}" rout=ATL_mm${kmaj}_${mu}x${nu}_1 
+gen_amtrmm : $(BINdir)/xextract 
+	$(extC) -b $(mySRCdir)/micro-kg.base -o $(rt) pre=$(pre) vec=$(vec) \
+           rout=amm -def vl $(vlen) -def mu $(mu) -def nu $(nu) -def ku $(ku) \
+           -def kp $(kp) -def bc $(bcast) -def kb $(KB) \
+           -def pf $(pf) -def pfLS $(pfLS) -def TRI 0 -def TRMM $(TRMM)
+gen_ntrsm_cpC : $(BINdir)/xextract $(mySRCdir)/trsm-nano.base
+	$(extC) -b $(mySRCdir)/trsm-nano.base -o $(rt) rout=cpC \
+           -def ta $(tALL) -def mu $(mu) -def nu $(nu)
+gen_ntrsmUU : $(BINdir)/xextract $(mySRCdir)/trsm-nano.base
+	rm -f $(ptmp) $(rt) ; touch $(rt)
+	if [ "X$(up)" = "XU" ] ; then \
+           echo "#define Upper_ 1" >> $(rt) ; \
+        fi
+	if [ "X$(cnj)" = "XC" ] ; then \
+           echo "#define Conj_ 1" >> $(rt) ; \
+        fi
+	if [ "X$(tALL)" = "XT" ] ; then \
+           echo "#define USE_TRANS 1" >> $(rt) ; \
+        fi  
+	make gen_ntrsm_cpC rt=$(ptmp) tALL=$(tALL) mu=$(mu) nu=$(nu) 
+	cat $(ptmp) >> $(rt) 
+	if [ "X$(sd)" = "XL" ] ; then \
+	   $(extC) -b $(mySRCdir)/trsm-nano.base \
+              rout=ATL_$(cx)ntrsm$(sd) -def sd $(sd) -def ta $(ta) \
+              -def up $(up) -def U $(mu) >> $(rt) ; \
+        else \
+	   $(extC) -b $(mySRCdir)/trsm-nano.base \
+              rout=ATL_$(cx)ntrsm$(sd) -def sd $(sd) -def ta $(ta) \
+              -def up $(up) -def U $(nu) >> $(rt) ; \
+        fi 
+gen_utrsm:
+	if [ "X$(tALL)" = "XT" ] ; then \
+           make gen_ntrsmUU rt=$(rt) tALL=T mu=$(nu) nu=$(mu) \
+                sd=$(sd) ta=$(ta) up=$(up) cnj=$(cnj) cx="$(cx)" ; \
+        else \
+           make gen_ntrsmUU rt=$(rt) tALL=N mu=$(mu) nu=$(nu) \
+                sd=$(sd) ta=$(ta) up=$(up) cnj=$(cnj) cx="$(cx)" ; \
+        fi
+	cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> $(rt)
+gen_cntrsm : $(BINdir)/xextract $(mySRCdir)/trsm-nano.base
+	$(extC) -b $(mySRCdir)/trsm-nano.base -o $(rt) rout=ATL_cntrsm$(sd) \
+           -def sd $(sd) -def ta $(ta) -def up $(up) -def U $(U)
+genall_cntrsm:
+	- rm -f $(ptmp) $(rt)
+	touch $(rt)
+	$(MAKE) gen_ntrsm_cpC rt=$(ptmp) tALL=$(tALL) mu=$(mu) nu=$(nu)
+	cat $(ptmp) >> $(rt)
+	if [ "X$(ta)" = "XT" ] ; then \
+           echo "#define Trans_ 1" >> $(rt) ; \
+        elif [ "X$(ta)" = "XC" ] ; then \
+           echo "#define Trans_ 1" >> $(rt) ; \
+           echo "#define Conj_  1" >> $(rt) ; \
+        fi
+	if [ "X$(sd)" = "XL" ] ; then \
+	   $(MAKE) gen_cntrsm rt=$(ptmp) sd=$(sd) ta=$(ta) up=$(up) U=$(mu) ; \
+        else \
+	   $(MAKE) gen_cntrsm rt=$(ptmp) sd=$(sd) ta=$(ta) up=$(up) U=$(nu) ; \
+        fi
+	cat $(ptmp) >> $(rt)
+gen_ntrsm : $(BINdir)/xextract $(mySRCdir)/trsm-nano.base
+	$(extC) -b $(mySRCdir)/trsm-nano.base -o $(rt) rout=ATL_ntrsm$(sd) \
+           -def sd $(sd) -def ta $(ta) -def up $(up) -def U $(U)
+genall_ntrsm:
+	- rm -f $(ptmp) $(rt)
+	touch $(rt)
+	$(MAKE) gen_ntrsm_cpC rt=$(ptmp) tALL=$(tALL) mu=$(mu) nu=$(nu)
+	cat $(ptmp) >> $(rt)
+	if [ "X$(ta)" = "XT" ] ; then \
+           echo "#define Trans_ 1" >> $(rt) ; \
+        fi
+	if [ "X$(sd)" = "XL" ] ; then \
+	   $(MAKE) gen_ntrsm rt=$(ptmp) sd=$(sd) ta=$(ta) up=$(up) U=$(mu) ; \
+        else \
+	   $(MAKE) gen_ntrsm rt=$(ptmp) sd=$(sd) ta=$(ta) up=$(up) U=$(nu) ; \
+        fi
+	cat $(ptmp) >> $(rt)
+res/$(pre)Xover.h :
+	$(MAKE) $(pre)Run_tfc pre=$(pre)
+
+RunTXover : x$(pre)txover
+	$(ATLRUN) $(MMTdir) x$(pre)txover -o res/atlas_$(pre)tXover_$(NPROC)p.h
+	cp -f res/atlas_$(pre)tXover_$(NPROC)p.h $(INCAdir)/.
+res/atlas_$(pre)tXover_$(NPROC)p.h : 
+	$(MAKE) RunTXover pre=$(pre)
+	
+res/atlas_zdNKB.h :
+	$(MAKE) zdRunFindCE
+res/atlas_csNKB.h :
+	$(MAKE) csRunFindCE
+
+
+xemit_reg : emit_reg.o
+	$(XCC) $(XCCFLAGS) -o xemit_reg emit_reg.o
+
+xemit_cmm : emit_cmm.o
+	$(XCC) $(XCCFLAGS) -o xemit_cmm emit_cmm.o
+
+
+$(BLDdir)/src/threads/lapack/amm/sumd :
+	mkdir $(BLDdir)/src/threads/lapack/amm/sumd
+
+xvmmf_gccsub : $(mySRCdir)/vmmf_gccsub.c
+	$(XCC) $(XCCFLAGS) -o xvmmf_gccsub $(mySRCdir)/vmmf_gccsub.c
+
+smflops.frc : xgmmsearch
+	./xgmmsearch -p s -f 16
+res/snreg : xgmmsearch smflops.frc
+	./xgmmsearch -p s -f 4
+sRun_tfc : stfc
+	$(ATLRUN) $(MMTdir) xstfc
+	cp -f $(INCAdir)/sXover.h res/.
+
+stfc :
+	$(MAKE) xstfc pre=s typ=SREAL
+
+res/sgmvAMMUR.sum : xgmmsearch
+	./xgmmsearch -p s
+res/sgkvAMMUR.sum : xgmmsearch
+	./xgmmsearch -p s
+res/sgAMMRES.sum : xgmmsearch
+	./xgmmsearch -p s
+ssave_uamm : $(usaved)
+	cp res/suAMMFRC.sum $(usaved)/.
+	cp res/sUMMKCLEAN.sum $(usaved)/.
+	cp res/sUMMKCLEANBYNB.sum $(usaved)/.
+srestore_uamm : $(usaved)
+	cp $(usaved)/suAMMFRC.sum res/.
+	cp $(usaved)/sUMMKCLEAN.sum res/.
+	cp $(usaved)/sUMMKCLEANBYNB.sum res/.
+suamm_getrf : xuammsearch $(BLDdir)/src/threads/lapack/amm/sumd
+	./xuammsearch -p s -b $(NRF) -M 2 a c -T 1.01 -K 0
+	make sinstall_uamm_noclean ID=0
+	cp res/suAMMFRC.sum $(BLDdir)/src/threads/lapack/amm/sumd/.
+sviews=-V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipgen res/sipgen.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipmen res/sipmen.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipmenUM res/sipmenUM.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipmek res/sipmek.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipnek res/sipnek.sum \
+    -V Ad=F Aa=1 S=C,M,U K=0 syrk res/sSYRKFNL.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmLN res/strsmL_LN.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmRN res/strsmR_LN.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmLT res/strsmL_LT.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmRT res/strsmR_LT.sum \
+    -V S=M Cd=I Ca=1,N,X Cb=0,1 Ad=F Aa=1,N,X K=0 trmmLU res/strmmLU.sum \
+    -V S=M Cd=I Ca=1,N,X Cb=0,1 Ad=F Aa=1,N,X K=0 trmmRU res/strmmRU.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X K=0 opmek res/sopmek.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X K=0 opnek res/sopnek.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X K=0 opgen res/sopFNL.sum 
+res/scpylst.CPS : xcpyfvw force_build res/sFNLK1.sum
+	./xcpyfvw -z $(minsz) -p s $(sviews)
+res/sCPYWORK.sum : CPYCASES/scopy.idx xucpytest
+	./xucpytest -i CPYCASES/scopy.idx -o $@
+res/scpyPERF.CPS : res/scpylst.CPS xcpysearch res/sCPYWORK.sum
+	./xcpysearch -u res/sCPYWORK.sum -i res/scpylst.CPS \
+                     -o res/scpyPERF.CPS
+$(AMMdir)/KERNEL/SCOPY:
+	mkdir $(AMMdir)/KERNEL/SCOPY
+sinstall_cpy : $(AMMdir)/KERNEL/SCOPY xcpydrv force_build \
+               res/scpyPERF.CPS res/sFNLK1.sum
+	- cd $(AMMdir)/KERNEL/SCOPY ; - $(MAKE) killall
+	./xcpydrv -p s $(sviews) \
+                  -o $(AMMdir)/KERNEL/SCOPY
+	mv -f $(AMMdir)/KERNEL/SCOPY/*view.h $(INCAdir)/.
+	mv -f $(AMMdir)/KERNEL/SCOPY/*.h $(INCAdir)/COPY/.
+	cd $(AMMdir)/KERNEL/SCOPY/ ; $(PMAKE)
+
+sinstall_uamm_noclean: xuammgen res/suAMMRES.sum res/cuAMMRES.sum
+	- cd $(AMMdir)/UKERNEL ; $(PMAKE) -f sMake_amm skillall
+	./xuammgen -p s -d $(AMMdir)/UKERNEL -I $(ID)
+	mv $(AMMdir)/UKERNEL/*.h $(INCAdir)/.
+	cd $(AMMdir)/UKERNEL ; $(PMAKE) -f sMake_amm
+sinstall_ammm: sinstall_amm
+res/sSYRKFNL.sum : xgmmsearch
+	./xgmmsearch -p s
+res/sipbestUM.sum : res/sgSYRKUM.sum xipsrch xbfisrch
+	./xipsrch -p s
+res/sipgen.sum : res/sgAMMRES.sum xipsrch xbfisrch
+	./xipsrch -p s
+res/sopFNL.sum : res/sgAMMRES.sum xopsrch xbfisrch
+	./xopsrch -p s
+res/sopnek.sum : res/sopFNL.sum
+	./xopsrch -p s
+res/sopmek.sum : res/sopFNL.sum
+	./xopsrch -p s
+res/sK1.sum : xaddKClean res/sipgen.sum res/cipgen.sum \
+   res/sipmen.sum res/cipmen.sum \
+   res/sipmenUM.sum res/cipmenUM.sum \
+   res/sipmek.sum res/cipmek.sum \
+   res/sipnek.sum res/cipnek.sum \
+   res/sopmek.sum res/copmek.sum \
+   res/sopnek.sum res/copnek.sum
+	./xaddKClean -i res/sipgen.sum -i res/cipgen.sum \
+           -i res/sipmen.sum -i res/cipmen.sum -o res/sK1.sum \
+           -i res/sipmenUM.sum -i res/cipmenUM.sum \
+           -i res/sipmek.sum -i res/cipmek.sum \
+           -i res/sipnek.sum -i res/cipnek.sum \
+           -i res/sopmek.sum -i res/copmek.sum \
+           -i res/sopnek.sum -i res/copnek.sum
+res/strsmL_LT.sum : xtrsmsrch
+	./xtrsmsrch -p s -S L -U L -A T
+res/strsmL_LN.sum : xtrsmsrch
+	./xtrsmsrch -p s -S L -U L -A N
+res/strsmL_UT.sum : xtrsmsrch
+	./xtrsmsrch -p s -S L -U U -A T
+res/strsmL_UN.sum : xtrsmsrch
+	./xtrsmsrch -p s -S L -U U -A N
+res/strsmR_LT.sum : xtrsmsrch
+	./xtrsmsrch -p s -S R -U L -A T
+res/strsmR_LN.sum : xtrsmsrch
+	./xtrsmsrch -p s -S R -U L -A N
+res/strsmR_UT.sum : xtrsmsrch
+	./xtrsmsrch -p s -S R -U U -A T
+res/strsmR_UN.sum : xtrsmsrch
+	./xtrsmsrch -p s -S R -U U -A N
+sinstall_trsm: xtrsmgen force_build \
+   res/strsmL_LN.sum res/strsmL_LT.sum \
+   res/strsmR_LN.sum res/strsmR_LT.sum
+	./xtrsmgen -p s -o $(L3Bdir)/../ulevel3
+	mv $(L3Bdir)/../ulevel3/sUTRSM/*.h $(INCAdir)/.
+	cd $(L3Bdir)/../ulevel3/sUTRSM ; $(PMAKE) slib
+	#cd $(L3Bdir)/../ulevel3 ; $(PMAKE) slib
+sinstall_trmm: xtrmmgen force_build \
+   res/strmmLU.sum res/strmmRU.sum
+	./xtrmmgen -p s -o $(L3Bdir)/../ulevel3
+	mv $(L3Bdir)/../ulevel3/sUTRMM/*.h $(INCAdir)/.
+	cd $(L3Bdir)/../ulevel3/sUTRMM ; $(PMAKE) slib
+	#cd $(L3Bdir)/../ulevel3 ; $(PMAKE) slib
+res/sFNLK1.sum : xammk1srch res/sK1.sum res/sopFNL.sum res/copFNL.sum \
+   res/strmmKLU.sum res/strmmKRU.sum \
+   res/ctrmmKLU.sum res/ctrmmKRU.sum \
+   res/strsmL_LN.sum res/strsmR_LN.sum \
+   res/strsmL_LT.sum res/strsmR_LT.sum \
+   res/ctrsmL_LN.sum res/ctrsmR_LN.sum \
+   res/ctrsmL_LT.sum res/ctrsmR_LT.sum \
+   res/sipbestUM.sum res/cipbestUM.sum
+	./xammk1srch -p s -o res/sFNLK1.sum -i res/sK1.sum \
+            -i res/sopFNL.sum -i res/copFNL.sum \
+            -i res/strsmL_LN.sum -i res/strsmR_LN.sum \
+            -i res/strsmL_LT.sum -i res/strsmR_LT.sum  \
+            -i res/ctrsmL_LN.sum -i res/ctrsmR_LN.sum \
+            -i res/ctrsmL_LT.sum -i res/ctrsmR_LT.sum  \
+            -i res/strmmKLU.sum -i res/strmmKRU.sum \
+            -i res/ctrmmKLU.sum -i res/ctrmmKRU.sum \
+            -i res/sipbestUM.sum -i res/cipbestUM.sum
+res/cgAMSYRK.sum : xgmmsearch
+	./xgmmsearch -p c
+res/sgAMSYRK.sum : xgmmsearch
+	./xgmmsearch -p s
+res/ctrmmKRL.sum : xgmmsearch
+	./xgmmsearch -p c
+res/ctrmmRL.sum : res/ctrmmKRL.sum xtrmmview
+	./xtrmmview -p c -S R -U L
+res/strmmKRL.sum : xgmmsearch
+	./xgmmsearch -p s
+res/strmmRL.sum : res/strmmKRL.sum xtrmmview
+	./xtrmmview -p s -S R -U L
+res/ctrmmKRU.sum : xgmmsearch
+	./xgmmsearch -p c
+res/ctrmmRU.sum : res/ctrmmKRU.sum xtrmmview
+	./xtrmmview -p c -S R -U U
+res/strmmKRU.sum : xgmmsearch
+	./xgmmsearch -p s
+res/strmmRU.sum : res/strmmKRU.sum xtrmmview
+	./xtrmmview -p s -S R -U U
+res/ctrmmKLL.sum : xgmmsearch
+	./xgmmsearch -p c
+res/ctrmmLL.sum : res/ctrmmKLL.sum xtrmmview
+	./xtrmmview -p c -S L -U L
+res/strmmKLL.sum : xgmmsearch
+	./xgmmsearch -p s
+res/strmmLL.sum : res/strmmKLL.sum xtrmmview
+	./xtrmmview -p s -S L -U L
+res/ctrmmKLU.sum : xgmmsearch
+	./xgmmsearch -p c
+res/ctrmmLU.sum : res/ctrmmKLU.sum xtrmmview
+	./xtrmmview -p c -S L -U U
+res/strmmKLU.sum : xgmmsearch
+	./xgmmsearch -p s
+res/strmmLU.sum : res/strmmKLU.sum xtrmmview
+	./xtrmmview -p s -S L -U U
+res/sAMSYRKFNL.sum : res/sgAMSYRK.sum res/cgAMSYRK.sum \
+                     res/sipsyrkUM.sum res/cipsyrkUM.sum
+	- rm -f res/sAMSYRKFNL.sum
+	cat res/[s,c]gAMSYRK.sum > res/sAMSYRKFNL.sum
+	cat res/[s,c]ipsyrkUM.sum >> res/sAMSYRKFNL.sum
+sinstall_amm: xammkgen xbfisrch res/sFNLK1.sum force_build \
+   res/sAMSYRKFNL.sum res/strsmL_LN.sum res/strsmL_LT.sum \
+   res/strsmR_LN.sum res/strsmR_LT.sum \
+   res/ctrsmL_LN.sum res/ctrsmL_LT.sum \
+   res/ctrsmR_LN.sum res/ctrsmR_LT.sum \
+   res/strmmRU.sum res/strmmLU.sum \
+   res/ctrmmRU.sum res/ctrmmLU.sum 
+	- cd $(AMMdir)/KERNEL ; $(PMAKE) -f sMake_amm skillall
+	./xammkgen -p s -o $(AMMdir)/KERNEL \
+           -b res/sAMSYRKFNL.sum 
+	mv $(AMMdir)/KERNEL/*.h $(INCAdir)/.
+	$(MAKE) sinstall_cpy
+	$(MAKE) cinstall_cpy
+	$(MAKE) sinstall_trsm
+	$(MAKE) cinstall_trsm
+	$(MAKE) sinstall_trmm
+	$(MAKE) cinstall_trmm
+	#cd $(L3Bdir)/../ulevel3 ; $(PMAKE) slib
+	cd $(AMMdir)/KERNEL ; $(PMAKE) -f sMake_amm lib
+	cd $(AMMdir) ; $(PMAKE) slib
+sRunFindCE : xsfindCE
+	$(ATLRUN) $(MMTdir) xsfindCE -f res/atlas_cacheedge.h
+	cp -f res/atlas_cacheedge.h $(INCAdir)/atlas_cacheedge.h
+
+dmflops.frc : xgmmsearch
+	./xgmmsearch -p d -f 16
+res/dnreg : xgmmsearch dmflops.frc
+	./xgmmsearch -p d -f 4
+dRun_tfc : dtfc
+	$(ATLRUN) $(MMTdir) xdtfc
+	cp -f $(INCAdir)/dXover.h res/.
+
+dtfc :
+	$(MAKE) xdtfc pre=d typ=DREAL
+
+res/dgmvAMMUR.sum : xgmmsearch
+	./xgmmsearch -p d
+res/dgkvAMMUR.sum : xgmmsearch
+	./xgmmsearch -p d
+res/dgAMMRES.sum : xgmmsearch
+	./xgmmsearch -p d
+dsave_uamm : $(usaved)
+	cp res/duAMMFRC.sum $(usaved)/.
+	cp res/dUMMKCLEAN.sum $(usaved)/.
+	cp res/dUMMKCLEANBYNB.sum $(usaved)/.
+drestore_uamm : $(usaved)
+	cp $(usaved)/duAMMFRC.sum res/.
+	cp $(usaved)/dUMMKCLEAN.sum res/.
+	cp $(usaved)/dUMMKCLEANBYNB.sum res/.
+duamm_getrf : xuammsearch $(BLDdir)/src/threads/lapack/amm/sumd
+	./xuammsearch -p d -b $(NRF) -M 2 a c -T 1.01 -K 0
+	make dinstall_uamm_noclean ID=0
+	cp res/duAMMFRC.sum $(BLDdir)/src/threads/lapack/amm/sumd/.
+dviews=-V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipgen res/dipgen.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipmen res/dipmen.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipmenUM res/dipmenUM.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipmek res/dipmek.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipnek res/dipnek.sum \
+    -V Ad=F Aa=1 S=C,M,U K=0 syrk res/dSYRKFNL.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmLN res/dtrsmL_LN.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmRN res/dtrsmR_LN.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmLT res/dtrsmL_LT.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmRT res/dtrsmR_LT.sum \
+    -V S=M Cd=I Ca=1,N,X Cb=0,1 Ad=F Aa=1,N,X K=0 trmmLU res/dtrmmLU.sum \
+    -V S=M Cd=I Ca=1,N,X Cb=0,1 Ad=F Aa=1,N,X K=0 trmmRU res/dtrmmRU.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X K=0 opmek res/dopmek.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X K=0 opnek res/dopnek.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X K=0 opgen res/dopFNL.sum 
+res/dcpylst.CPS : xcpyfvw force_build res/dFNLK1.sum
+	./xcpyfvw -z $(minsz) -p d $(dviews)
+res/dCPYWORK.sum : CPYCASES/dcopy.idx xucpytest
+	./xucpytest -i CPYCASES/dcopy.idx -o $@
+res/dcpyPERF.CPS : res/dcpylst.CPS xcpysearch res/dCPYWORK.sum
+	./xcpysearch -u res/dCPYWORK.sum -i res/dcpylst.CPS \
+                     -o res/dcpyPERF.CPS
+$(AMMdir)/KERNEL/DCOPY:
+	mkdir $(AMMdir)/KERNEL/DCOPY
+dinstall_cpy : $(AMMdir)/KERNEL/DCOPY xcpydrv force_build \
+               res/dcpyPERF.CPS res/dFNLK1.sum
+	- cd $(AMMdir)/KERNEL/DCOPY ; - $(MAKE) killall
+	./xcpydrv -p d $(dviews) \
+                  -o $(AMMdir)/KERNEL/DCOPY
+	mv -f $(AMMdir)/KERNEL/DCOPY/*view.h $(INCAdir)/.
+	mv -f $(AMMdir)/KERNEL/DCOPY/*.h $(INCAdir)/COPY/.
+	cd $(AMMdir)/KERNEL/DCOPY/ ; $(PMAKE)
+
+dinstall_uamm_noclean: xuammgen res/duAMMRES.sum res/zuAMMRES.sum \
+                       res/suAMMRES.sum res/cuAMMRES.sum res/suAMMRES.sum \
+                       res/cuAMMRES.sum
+	- cd $(AMMdir)/UKERNEL ; $(PMAKE) -f dMake_amm dkillall
+	./xuammgen -p d -d $(AMMdir)/UKERNEL -I $(ID)
+	mv $(AMMdir)/UKERNEL/*.h $(INCAdir)/.
+	cd $(AMMdir)/UKERNEL ; $(PMAKE) -f dMake_amm
+dinstall_uamm: xuammgen res/duAMMKCLEAN.sum res/duAMMRES.sum \
+               res/zuAMMKCLEAN.sum res/zuAMMRES.sum
+	- cd $(AMMdir)/UKERNEL ; $(PMAKE) -f dMake_amm dkillall
+	./xuammgen -p d -d $(AMMdir)/UKERNEL -I $(ID)
+	mv $(AMMdir)/UKERNEL/*.h $(INCAdir)/.
+	cd $(AMMdir)/UKERNEL ; $(PMAKE) -f dMake_amm
+dinstall_ammm: dinstall_amm
+res/dSYRKFNL.sum : xgmmsearch
+	./xgmmsearch -p d
+res/dipbestUM.sum : res/dgSYRKUM.sum xipsrch xbfisrch
+	./xipsrch -p d
+res/dipgen.sum : res/dgAMMRES.sum xipsrch xbfisrch
+	./xipsrch -p d
+res/dopFNL.sum : res/dgAMMRES.sum xopsrch xbfisrch
+	./xopsrch -p d
+res/dopnek.sum : res/dopFNL.sum
+	./xopsrch -p d
+res/dopmek.sum : res/dopFNL.sum
+	./xopsrch -p d
+res/dK1.sum : xaddKClean res/dipgen.sum res/zipgen.sum \
+   res/dipmen.sum res/zipmen.sum \
+   res/dipmenUM.sum res/zipmenUM.sum \
+   res/dipmek.sum res/zipmek.sum \
+   res/dipnek.sum res/zipnek.sum \
+   res/dopmek.sum res/zopmek.sum \
+   res/dopnek.sum res/zopnek.sum
+	./xaddKClean -i res/dipgen.sum -i res/zipgen.sum \
+           -i res/dipmen.sum -i res/zipmen.sum -o res/dK1.sum \
+           -i res/dipmenUM.sum -i res/zipmenUM.sum \
+           -i res/dipmek.sum -i res/zipmek.sum \
+           -i res/dipnek.sum -i res/zipnek.sum \
+           -i res/dopmek.sum -i res/zopmek.sum \
+           -i res/dopnek.sum -i res/zopnek.sum
+res/dtrsmL_LT.sum : xtrsmsrch
+	./xtrsmsrch -p d -S L -U L -A T
+res/dtrsmL_LN.sum : xtrsmsrch
+	./xtrsmsrch -p d -S L -U L -A N
+res/dtrsmL_UT.sum : xtrsmsrch
+	./xtrsmsrch -p d -S L -U U -A T
+res/dtrsmL_UN.sum : xtrsmsrch
+	./xtrsmsrch -p d -S L -U U -A N
+res/dtrsmR_LT.sum : xtrsmsrch
+	./xtrsmsrch -p d -S R -U L -A T
+res/dtrsmR_LN.sum : xtrsmsrch
+	./xtrsmsrch -p d -S R -U L -A N
+res/dtrsmR_UT.sum : xtrsmsrch
+	./xtrsmsrch -p d -S R -U U -A T
+res/dtrsmR_UN.sum : xtrsmsrch
+	./xtrsmsrch -p d -S R -U U -A N
+dinstall_trsm: xtrsmgen force_build \
+   res/dtrsmL_LN.sum res/dtrsmL_LT.sum \
+   res/dtrsmR_LN.sum res/dtrsmR_LT.sum
+	./xtrsmgen -p d -o $(L3Bdir)/../ulevel3
+	mv $(L3Bdir)/../ulevel3/dUTRSM/*.h $(INCAdir)/.
+	cd $(L3Bdir)/../ulevel3/dUTRSM ; $(PMAKE) dlib
+	#cd $(L3Bdir)/../ulevel3 ; $(PMAKE) dlib
+dinstall_trmm: xtrmmgen force_build \
+   res/dtrmmLU.sum res/dtrmmRU.sum
+	./xtrmmgen -p d -o $(L3Bdir)/../ulevel3
+	mv $(L3Bdir)/../ulevel3/dUTRMM/*.h $(INCAdir)/.
+	cd $(L3Bdir)/../ulevel3/dUTRMM ; $(PMAKE) dlib
+	#cd $(L3Bdir)/../ulevel3 ; $(PMAKE) dlib
+res/dFNLK1.sum : xammk1srch res/dK1.sum res/dopFNL.sum res/zopFNL.sum \
+   res/dtrmmKLU.sum res/dtrmmKRU.sum \
+   res/ztrmmKLU.sum res/ztrmmKRU.sum \
+   res/dtrsmL_LN.sum res/dtrsmR_LN.sum \
+   res/dtrsmL_LT.sum res/dtrsmR_LT.sum \
+   res/ztrsmL_LN.sum res/ztrsmR_LN.sum \
+   res/ztrsmL_LT.sum res/ztrsmR_LT.sum \
+   res/dipbestUM.sum res/zipbestUM.sum
+	./xammk1srch -p d -o res/dFNLK1.sum -i res/dK1.sum \
+            -i res/dopFNL.sum -i res/zopFNL.sum \
+            -i res/dtrsmL_LN.sum -i res/dtrsmR_LN.sum \
+            -i res/dtrsmL_LT.sum -i res/dtrsmR_LT.sum  \
+            -i res/ztrsmL_LN.sum -i res/ztrsmR_LN.sum \
+            -i res/ztrsmL_LT.sum -i res/ztrsmR_LT.sum  \
+            -i res/dtrmmKLU.sum -i res/dtrmmKRU.sum \
+            -i res/ztrmmKLU.sum -i res/ztrmmKRU.sum \
+            -i res/dipbestUM.sum -i res/zipbestUM.sum
+res/zgAMSYRK.sum : xgmmsearch
+	./xgmmsearch -p z
+res/dgAMSYRK.sum : xgmmsearch
+	./xgmmsearch -p d
+res/ztrmmKRL.sum : xgmmsearch
+	./xgmmsearch -p z
+res/ztrmmRL.sum : res/ztrmmKRL.sum xtrmmview
+	./xtrmmview -p z -S R -U L
+res/dtrmmKRL.sum : xgmmsearch
+	./xgmmsearch -p d
+res/dtrmmRL.sum : res/dtrmmKRL.sum xtrmmview
+	./xtrmmview -p d -S R -U L
+res/ztrmmKRU.sum : xgmmsearch
+	./xgmmsearch -p z
+res/ztrmmRU.sum : res/ztrmmKRU.sum xtrmmview
+	./xtrmmview -p z -S R -U U
+res/dtrmmKRU.sum : xgmmsearch
+	./xgmmsearch -p d
+res/dtrmmRU.sum : res/dtrmmKRU.sum xtrmmview
+	./xtrmmview -p d -S R -U U
+res/ztrmmKLL.sum : xgmmsearch
+	./xgmmsearch -p z
+res/ztrmmLL.sum : res/ztrmmKLL.sum xtrmmview
+	./xtrmmview -p z -S L -U L
+res/dtrmmKLL.sum : xgmmsearch
+	./xgmmsearch -p d
+res/dtrmmLL.sum : res/dtrmmKLL.sum xtrmmview
+	./xtrmmview -p d -S L -U L
+res/ztrmmKLU.sum : xgmmsearch
+	./xgmmsearch -p z
+res/ztrmmLU.sum : res/ztrmmKLU.sum xtrmmview
+	./xtrmmview -p z -S L -U U
+res/dtrmmKLU.sum : xgmmsearch
+	./xgmmsearch -p d
+res/dtrmmLU.sum : res/dtrmmKLU.sum xtrmmview
+	./xtrmmview -p d -S L -U U
+res/dAMSYRKFNL.sum : res/dgAMSYRK.sum res/zgAMSYRK.sum \
+                     res/dipsyrkUM.sum res/zipsyrkUM.sum
+	- rm -f res/dAMSYRKFNL.sum
+	cat res/[d,z]gAMSYRK.sum > res/dAMSYRKFNL.sum
+	cat res/[d,z]ipsyrkUM.sum >> res/dAMSYRKFNL.sum
+dinstall_amm: xammkgen xbfisrch res/dFNLK1.sum force_build \
+   res/dAMSYRKFNL.sum res/dtrsmL_LN.sum res/dtrsmL_LT.sum \
+   res/dtrsmR_LN.sum res/dtrsmR_LT.sum \
+   res/ztrsmL_LN.sum res/ztrsmL_LT.sum \
+   res/ztrsmR_LN.sum res/ztrsmR_LT.sum \
+   res/dtrmmRU.sum res/dtrmmLU.sum \
+   res/ztrmmRU.sum res/ztrmmLU.sum 
+	- cd $(AMMdir)/KERNEL ; $(PMAKE) -f dMake_amm dkillall
+	./xammkgen -p d -o $(AMMdir)/KERNEL \
+           -b res/dAMSYRKFNL.sum 
+	mv $(AMMdir)/KERNEL/*.h $(INCAdir)/.
+	$(MAKE) dinstall_cpy
+	$(MAKE) zinstall_cpy
+	$(MAKE) dinstall_trsm
+	$(MAKE) zinstall_trsm
+	$(MAKE) dinstall_trmm
+	$(MAKE) zinstall_trmm
+	#cd $(L3Bdir)/../ulevel3 ; $(PMAKE) dlib
+	cd $(AMMdir)/KERNEL ; $(PMAKE) -f dMake_amm lib
+	cd $(AMMdir) ; $(PMAKE) dlib
+dRunFindCE : xdfindCE
+	$(ATLRUN) $(MMTdir) xdfindCE -f res/atlas_cacheedge.h
+	cp -f res/atlas_cacheedge.h $(INCAdir)/atlas_cacheedge.h
+
+cmflops.frc : xgmmsearch
+	./xgmmsearch -p c -f 16
+res/cnreg : xgmmsearch cmflops.frc
+	./xgmmsearch -p c -f 4
+cRun_tfc : ctfc
+	$(ATLRUN) $(MMTdir) xctfc
+	cp -f $(INCAdir)/cXover.h res/.
+
+ctfc :
+	$(MAKE) xctfc pre=c typ=SCPLX
+
+res/cgmvAMMUR.sum : xgmmsearch
+	./xgmmsearch -p c
+res/cgkvAMMUR.sum : xgmmsearch
+	./xgmmsearch -p c
+res/cgAMMRES.sum : xgmmsearch
+	./xgmmsearch -p c
+csave_uamm : $(usaved)
+	cp res/cuAMMFRC.sum $(usaved)/.
+	cp res/cUMMKCLEAN.sum $(usaved)/.
+	cp res/cUMMKCLEANBYNB.sum $(usaved)/.
+crestore_uamm : $(usaved)
+	cp $(usaved)/cuAMMFRC.sum res/.
+	cp $(usaved)/cUMMKCLEAN.sum res/.
+	cp $(usaved)/cUMMKCLEANBYNB.sum res/.
+cuamm_getrf : xuammsearch $(BLDdir)/src/threads/lapack/amm/sumd
+	./xuammsearch -p c -b $(NRF) -M 2 a c -T 1.01 -K 0
+	make cinstall_uamm_noclean ID=0
+	cp res/cuAMMFRC.sum $(BLDdir)/src/threads/lapack/amm/sumd/.
+cviews=-V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipgen res/cipgen.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipmen res/cipmen.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipmenUM res/cipmenUM.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipmek res/cipmek.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipnek res/cipnek.sum \
+    -V Ad=F Aa=1 S=C,M,U K=0 syrk res/cSYRKFNL.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmLN res/ctrsmL_LN.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmRN res/ctrsmR_LN.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmLT res/ctrsmL_LT.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmRT res/ctrsmR_LT.sum \
+    -V S=M Cd=I Ca=1,N,X Cb=0,1 Ad=F Aa=1,N,X K=0 trmmLU res/ctrmmLU.sum \
+    -V S=M Cd=I Ca=1,N,X Cb=0,1 Ad=F Aa=1,N,X K=0 trmmRU res/ctrmmRU.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X K=0 opmek res/copmek.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X K=0 opnek res/copnek.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X K=0 opgen res/copFNL.sum 
+res/ccpylst.CPS : xcpyfvw force_build res/sFNLK1.sum
+	./xcpyfvw -z $(minsz) -p c $(cviews)
+res/cCPYWORK.sum : CPYCASES/ccopy.idx xucpytest
+	./xucpytest -i CPYCASES/ccopy.idx -o $@
+res/ccpyPERF.CPS : res/ccpylst.CPS xcpysearch res/cCPYWORK.sum
+	./xcpysearch -u res/cCPYWORK.sum -i res/ccpylst.CPS \
+                     -o res/ccpyPERF.CPS
+$(AMMdir)/KERNEL/CCOPY:
+	mkdir $(AMMdir)/KERNEL/CCOPY
+cinstall_cpy : $(AMMdir)/KERNEL/CCOPY xcpydrv force_build \
+               res/ccpyPERF.CPS res/sFNLK1.sum
+	- cd $(AMMdir)/KERNEL/CCOPY ; - $(MAKE) killall
+	./xcpydrv -p c $(cviews) \
+                  -o $(AMMdir)/KERNEL/CCOPY
+	mv -f $(AMMdir)/KERNEL/CCOPY/*view.h $(INCAdir)/.
+	mv -f $(AMMdir)/KERNEL/CCOPY/*.h $(INCAdir)/COPY/.
+	cd $(AMMdir)/KERNEL/CCOPY/ ; $(PMAKE)
+
+cinstall_uamm_noclean: 
+	$(MAKE) sinstall_uamm_noclean
+cinstall_uamm: 
+	$(MAKE) sinstall_uamm
+cinstall_ammm: cinstall_amm
+res/cSYRKFNL.sum : xgmmsearch
+	./xgmmsearch -p c
+res/cipbestUM.sum : res/cgSYRKUM.sum xipsrch xbfisrch
+	./xipsrch -p c
+res/cipgen.sum : res/cgAMMRES.sum xipsrch xbfisrch
+	./xipsrch -p c
+res/copFNL.sum : res/cgAMMRES.sum xopsrch xbfisrch
+	./xopsrch -p c
+res/copnek.sum : res/copFNL.sum
+	./xopsrch -p c
+res/copmek.sum : res/copFNL.sum
+	./xopsrch -p c
+res/cK1.sum : xaddKClean res/cipgen.sum res/zipgen.sum \
+   res/cipmen.sum res/zipmen.sum \
+   res/cipmenUM.sum res/zipmenUM.sum \
+   res/cipmek.sum res/zipmek.sum \
+   res/cipnek.sum res/zipnek.sum \
+   res/copmek.sum res/zopmek.sum \
+   res/copnek.sum res/zopnek.sum
+	./xaddKClean -i res/cipgen.sum -i res/zipgen.sum \
+           -i res/cipmen.sum -i res/zipmen.sum -o res/cK1.sum \
+           -i res/cipmenUM.sum -i res/zipmenUM.sum \
+           -i res/cipmek.sum -i res/zipmek.sum \
+           -i res/cipnek.sum -i res/zipnek.sum \
+           -i res/copmek.sum -i res/zopmek.sum \
+           -i res/copnek.sum -i res/zopnek.sum
+res/ctrsmL_LT.sum : xtrsmsrch
+	./xtrsmsrch -p c -S L -U L -A T
+res/ctrsmL_LN.sum : xtrsmsrch
+	./xtrsmsrch -p c -S L -U L -A N
+res/ctrsmL_UT.sum : xtrsmsrch
+	./xtrsmsrch -p c -S L -U U -A T
+res/ctrsmL_UN.sum : xtrsmsrch
+	./xtrsmsrch -p c -S L -U U -A N
+res/ctrsmR_LT.sum : xtrsmsrch
+	./xtrsmsrch -p c -S R -U L -A T
+res/ctrsmR_LN.sum : xtrsmsrch
+	./xtrsmsrch -p c -S R -U L -A N
+res/ctrsmR_UT.sum : xtrsmsrch
+	./xtrsmsrch -p c -S R -U U -A T
+res/ctrsmR_UN.sum : xtrsmsrch
+	./xtrsmsrch -p c -S R -U U -A N
+cinstall_trsm: xtrsmgen force_build \
+   res/ctrsmL_LN.sum res/ctrsmL_LT.sum \
+   res/ctrsmR_LN.sum res/ctrsmR_LT.sum
+	./xtrsmgen -p c -o $(L3Bdir)/../ulevel3
+	mv $(L3Bdir)/../ulevel3/cUTRSM/*.h $(INCAdir)/.
+	cd $(L3Bdir)/../ulevel3/cUTRSM ; $(PMAKE) clib
+	#cd $(L3Bdir)/../ulevel3 ; $(PMAKE) clib
+cinstall_trmm: xtrmmgen force_build \
+   res/ctrmmLU.sum res/ctrmmRU.sum
+	./xtrmmgen -p c -o $(L3Bdir)/../ulevel3
+	mv $(L3Bdir)/../ulevel3/cUTRMM/*.h $(INCAdir)/.
+	cd $(L3Bdir)/../ulevel3/cUTRMM ; $(PMAKE) clib
+	#cd $(L3Bdir)/../ulevel3 ; $(PMAKE) clib
+$(INCAdir)/atlas_camm_sum.h : res/atlas_camm_sum.h
+	cp res/atlas_camm_sum.h $(INCAdir)/atlas_camm_sum.h
+res/atlas_camm_sum.h : 
+	$(MAKE) xcnbtune
+	$(ATLRUN) $(MMTdir) xcnbtune -f res/atlas_camm_sum.h
+cinstall_amm: $(INCAdir)/atlas_camm_sum.h
+	$(MAKE) sinstall_amm
+cRunFindCE : xcfindCE
+	$(ATLRUN) $(MMTdir) xcfindCE -f res/atlas_cacheedge.h
+	cp -f res/atlas_cacheedge.h $(INCAdir)/atlas_cacheedge.h
+
+zmflops.frc : xgmmsearch
+	./xgmmsearch -p z -f 16
+res/znreg : xgmmsearch zmflops.frc
+	./xgmmsearch -p z -f 4
+zRun_tfc : ztfc
+	$(ATLRUN) $(MMTdir) xztfc
+	cp -f $(INCAdir)/zXover.h res/.
+
+ztfc :
+	$(MAKE) xztfc pre=z typ=DCPLX
+
+res/zgmvAMMUR.sum : xgmmsearch
+	./xgmmsearch -p z
+res/zgkvAMMUR.sum : xgmmsearch
+	./xgmmsearch -p z
+res/zgAMMRES.sum : xgmmsearch
+	./xgmmsearch -p z
+zsave_uamm : $(usaved)
+	cp res/zuAMMFRC.sum $(usaved)/.
+	cp res/zUMMKCLEAN.sum $(usaved)/.
+	cp res/zUMMKCLEANBYNB.sum $(usaved)/.
+zrestore_uamm : $(usaved)
+	cp $(usaved)/zuAMMFRC.sum res/.
+	cp $(usaved)/zUMMKCLEAN.sum res/.
+	cp $(usaved)/zUMMKCLEANBYNB.sum res/.
+zuamm_getrf : xuammsearch $(BLDdir)/src/threads/lapack/amm/sumd
+	./xuammsearch -p z -b $(NRF) -M 2 a c -T 1.01 -K 0
+	make zinstall_uamm_noclean ID=0
+	cp res/zuAMMFRC.sum $(BLDdir)/src/threads/lapack/amm/sumd/.
+zviews=-V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipgen res/zipgen.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipmen res/zipmen.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipmenUM res/zipmenUM.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipmek res/zipmek.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X ipnek res/zipnek.sum \
+    -V Ad=F Aa=1 S=C,M,U K=0 syrk res/zSYRKFNL.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmLN res/ztrsmL_LN.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmRN res/ztrsmR_LN.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmLT res/ztrsmL_LT.sum \
+    -V S=C Cd=I Ca=1 Cb=1 Ad=F Aa=1,N K=0 trsmRT res/ztrsmR_LT.sum \
+    -V S=M Cd=I Ca=1,N,X Cb=0,1 Ad=F Aa=1,N,X K=0 trmmLU res/ztrmmLU.sum \
+    -V S=M Cd=I Ca=1,N,X Cb=0,1 Ad=F Aa=1,N,X K=0 trmmRU res/ztrmmRU.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X K=0 opmek res/zopmek.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X K=0 opnek res/zopnek.sum \
+    -V Cd=I Ca=1,N,X Cb=0,1,N,X Ad=F Aa=1,N,X K=0 opgen res/zopFNL.sum 
+res/zcpylst.CPS : xcpyfvw force_build res/dFNLK1.sum
+	./xcpyfvw -z $(minsz) -p z $(zviews)
+res/zCPYWORK.sum : CPYCASES/zcopy.idx xucpytest
+	./xucpytest -i CPYCASES/zcopy.idx -o $@
+res/zcpyPERF.CPS : res/zcpylst.CPS xcpysearch res/zCPYWORK.sum
+	./xcpysearch -u res/zCPYWORK.sum -i res/zcpylst.CPS \
+                     -o res/zcpyPERF.CPS
+$(AMMdir)/KERNEL/ZCOPY:
+	mkdir $(AMMdir)/KERNEL/ZCOPY
+zinstall_cpy : $(AMMdir)/KERNEL/ZCOPY xcpydrv force_build \
+               res/zcpyPERF.CPS res/dFNLK1.sum
+	- cd $(AMMdir)/KERNEL/ZCOPY ; - $(MAKE) killall
+	./xcpydrv -p z $(zviews) \
+                  -o $(AMMdir)/KERNEL/ZCOPY
+	mv -f $(AMMdir)/KERNEL/ZCOPY/*view.h $(INCAdir)/.
+	mv -f $(AMMdir)/KERNEL/ZCOPY/*.h $(INCAdir)/COPY/.
+	cd $(AMMdir)/KERNEL/ZCOPY/ ; $(PMAKE)
+
+zinstall_uamm_noclean: 
+	$(MAKE) dinstall_uamm_noclean
+zinstall_uamm: 
+	$(MAKE) dinstall_uamm
+zinstall_ammm: zinstall_amm
+res/zSYRKFNL.sum : xgmmsearch
+	./xgmmsearch -p z
+res/zipbestUM.sum : res/zgSYRKUM.sum xipsrch xbfisrch
+	./xipsrch -p z
+res/zipgen.sum : res/zgAMMRES.sum xipsrch xbfisrch
+	./xipsrch -p z
+res/zopFNL.sum : res/zgAMMRES.sum xopsrch xbfisrch
+	./xopsrch -p z
+res/zopnek.sum : res/zopFNL.sum
+	./xopsrch -p z
+res/zopmek.sum : res/zopFNL.sum
+	./xopsrch -p z
+res/zK1.sum : xaddKClean res/zipgen.sum res/zipgen.sum \
+   res/zipmen.sum res/zipmen.sum \
+   res/zipmenUM.sum res/zipmenUM.sum \
+   res/zipmek.sum res/zipmek.sum \
+   res/zipnek.sum res/zipnek.sum \
+   res/zopmek.sum res/zopmek.sum \
+   res/zopnek.sum res/zopnek.sum
+	./xaddKClean -i res/zipgen.sum -i res/zipgen.sum \
+           -i res/zipmen.sum -i res/zipmen.sum -o res/zK1.sum \
+           -i res/zipmenUM.sum -i res/zipmenUM.sum \
+           -i res/zipmek.sum -i res/zipmek.sum \
+           -i res/zipnek.sum -i res/zipnek.sum \
+           -i res/zopmek.sum -i res/zopmek.sum \
+           -i res/zopnek.sum -i res/zopnek.sum
+res/ztrsmL_LT.sum : xtrsmsrch
+	./xtrsmsrch -p z -S L -U L -A T
+res/ztrsmL_LN.sum : xtrsmsrch
+	./xtrsmsrch -p z -S L -U L -A N
+res/ztrsmL_UT.sum : xtrsmsrch
+	./xtrsmsrch -p z -S L -U U -A T
+res/ztrsmL_UN.sum : xtrsmsrch
+	./xtrsmsrch -p z -S L -U U -A N
+res/ztrsmR_LT.sum : xtrsmsrch
+	./xtrsmsrch -p z -S R -U L -A T
+res/ztrsmR_LN.sum : xtrsmsrch
+	./xtrsmsrch -p z -S R -U L -A N
+res/ztrsmR_UT.sum : xtrsmsrch
+	./xtrsmsrch -p z -S R -U U -A T
+res/ztrsmR_UN.sum : xtrsmsrch
+	./xtrsmsrch -p z -S R -U U -A N
+zinstall_trsm: xtrsmgen force_build \
+   res/ztrsmL_LN.sum res/ztrsmL_LT.sum \
+   res/ztrsmR_LN.sum res/ztrsmR_LT.sum
+	./xtrsmgen -p z -o $(L3Bdir)/../ulevel3
+	mv $(L3Bdir)/../ulevel3/zUTRSM/*.h $(INCAdir)/.
+	cd $(L3Bdir)/../ulevel3/zUTRSM ; $(PMAKE) zlib
+	#cd $(L3Bdir)/../ulevel3 ; $(PMAKE) zlib
+zinstall_trmm: xtrmmgen force_build \
+   res/ztrmmLU.sum res/ztrmmRU.sum
+	./xtrmmgen -p z -o $(L3Bdir)/../ulevel3
+	mv $(L3Bdir)/../ulevel3/zUTRMM/*.h $(INCAdir)/.
+	cd $(L3Bdir)/../ulevel3/zUTRMM ; $(PMAKE) zlib
+	#cd $(L3Bdir)/../ulevel3 ; $(PMAKE) zlib
+$(INCAdir)/atlas_zamm_sum.h : res/atlas_zamm_sum.h
+	cp res/atlas_zamm_sum.h $(INCAdir)/atlas_zamm_sum.h
+res/atlas_zamm_sum.h : 
+	$(MAKE) xznbtune
+	$(ATLRUN) $(MMTdir) xznbtune -f res/atlas_zamm_sum.h
+zinstall_amm: $(INCAdir)/atlas_zamm_sum.h
+	$(MAKE) dinstall_amm
+zRunFindCE : xzfindCE
+	$(ATLRUN) $(MMTdir) xzfindCE -f res/atlas_cacheedge.h
+	cp -f res/atlas_cacheedge.h $(INCAdir)/atlas_cacheedge.h
+
+
+csRunFindCE : xcsfindCE
+	$(ATLRUN) $(MMTdir) xcsfindCE -f res/atlas_csNKB.h
+	cp -f res/atlas_csNKB.h $(INCAdir)/.
+csfindCE.o : $(mySRCdir)/findCE.c
+	$(KC) $(KCFLAGS) -c -DSCPLX -DATL_JITcp -o $@ $(mySRCdir)/findCE.c
+
+xcsfindCE : $(INCAdir)/atlas_type.h $(L3INCdep) cmmlib smmlib \
+                csfindCE.o
+	cd $(GMMdir) ; $(MAKE) ATL_csFindCE_mm.o typ=SCPLX
+	$(CLINKER) $(CLINKFLAGS) -o $@ csfindCE.o \
+                   $(GMMdir)/ATL_csFindCE_mm.o $(ATLASlib) $(LIBS)
+zdRunFindCE : xzdfindCE
+	$(ATLRUN) $(MMTdir) xzdfindCE -f res/atlas_zdNKB.h
+	cp -f res/atlas_zdNKB.h $(INCAdir)/.
+zdfindCE.o : $(mySRCdir)/findCE.c
+	$(KC) $(KCFLAGS) -c -DDCPLX -DATL_JITcp -o $@ $(mySRCdir)/findCE.c
+
+xzdfindCE : $(INCAdir)/atlas_type.h $(L3INCdep) zmmlib dmmlib \
+                zdfindCE.o
+	cd $(GMMdir) ; $(MAKE) ATL_zdFindCE_mm.o typ=DCPLX
+	$(CLINKER) $(CLINKFLAGS) -o $@ zdfindCE.o \
+                   $(GMMdir)/ATL_zdFindCE_mm.o $(ATLASlib) $(LIBS)
+
+res/atlas_tcacheedge.h : 
+	$(MAKE) xdtfindCE
+	$(ATLRUN) $(MMTdir) xdtfindCE -f res/atlas_tcacheedge.h
+	cp -f res/atlas_tcacheedge.h $(INCAdir)/.
+PKC = $(DKC)
+PKFLAGS = $(DKCFLAGS) -x assembler-with-cpp
+pklib = $(ATLASlib)
+nrep=3
+peaktime: peaktim.o
+	$(PKC) $(PKFLAGS) $(CDEFS) -c -o pkkern.o $(pkkern)
+	$(CLINKER) $(CLINKFLAGS) -o xpeaktim peaktim.o pkkern.o \
+                                    $(SYSdir)/time.o $(pklib)
+	$(ATLRUN) $(MMTdir) xpeaktim -# $(nrep)
+peaktim.o : $(mySRCdir)/peaktim.c
+	$(KC) $(KCFLAGS) -c -o peaktim.o $(mySRCdir)/peaktim.c
+smmlib:
+	cd $(AMMdir) ; $(MAKE) slib
+
+sfindCE.o : $(mySRCdir)/findCE.c
+	$(KC) $(KCFLAGS) -c -DSREAL -o $@ $(mySRCdir)/findCE.c
+stfindCE.o : $(mySRCdir)/findCE.c
+	$(KC) $(KCFLAGS) -c -DATL_THREADED_CE -DSREAL -o $@ \
+               $(mySRCdir)/findCE.c
+
+sthrCE :
+	cd $(BLDdir)/src/threads ; $(MAKE) lib.grd
+	cd $(BLDdir)/src/threads/blas/level3 ; $(MAKE) slib
+	cd $(BLDdir)/src/threads/blas/level3 ; $(MAKE) ATL_stgemm_CE.o \
+           ATL_stgemm_bigMN_Kp_CE.o
+xstfindCE : $(INCAdir)/atlas_type.h $(L3INCdep) smmlib \
+                 stfindCE.o sthrCE
+	cd $(GMMdir) ; $(MAKE) ATL_sFindCE_mm.o pre=s typ=SREAL
+	$(CLINKER) $(CLINKFLAGS) -o $@ stfindCE.o \
+           $(BLDdir)/src/threads/blas/level3/ATL_stgemm_CE.o \
+           $(BLDdir)/src/threads/blas/level3/ATL_stgemm_bigMN_Kp_CE.o \
+           $(GMMdir)/ATL_sFindCE_mm.o $(ATLASlib) $(LIBS)
+
+sRunFindCE_thr : xstfindCE
+	$(ATLRUN) $(MMTdir) xstfindCE -f res/atlas_tscacheedge.h
+	cp -f res/atlas_tscacheedge.h $(INCAdir)/.
+
+xsfindCE : $(INCAdir)/atlas_type.h $(L3INCdep) smmlib \
+                sfindCE.o
+	cd $(GMMdir) ; $(MAKE) ATL_sFindCE_mm.o pre=s typ=SREAL
+	$(CLINKER) $(CLINKFLAGS) -o $@ sfindCE.o \
+                   $(GMMdir)/ATL_sFindCE_mm.o $(ATLASlib) $(LIBS)
+
+xstfc : $(INCAdir)/atlas_type.h $(L3INCdep) \
+             $(pre)tfc.o smmlib
+	cd $(GMMdir) ; $(MAKE) ATL_sbig_mm.o ATL_ssmall_mm.o \
+           pre=s typ=SREAL
+	$(CLINKER) $(CLINKFLAGS) -o $@ stfc.o \
+              $(GMMdir)/ATL_$(pre)big_mm.o $(GMMdir)/ATL_ssmall_mm.o \
+              $(ATLASlib) $(LIBS)
+
+srbob : $(SYSdir)/time.o xemit_reg $(INCAdir)/atlas_type.h \
+       $(INCAdir)/atlas_ssysinfo.h
+	rm -f fc.o smm.o smm.c
+	./xemit_reg x s $(muladd) $(mmrout) $(mb) $(nb) $(kb) $(if) $(nf) \
+                    $(mu) $(nu) $(ku) $(lat) $(beta) > smm.c
+	$(KC) $(KCFLAGS) -DsREAL -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+              -DKU=$(ku) -DNU=$(nu) -DMU=$(mu) -DLAT=$(lat) -DMULADD=$(muladd) \
+              -DNBmm=ATL_s$(mmrout) -DLDC=$(ldc) -DBETA=$(beta) $(moves) \
+              -o sfc.o -c $(mySRCdir)/fc.c
+	$(SMC) $(CDEFS) $(SMCFLAGS) -c smm.c
+	$(CLINKER) $(CLINKFLAGS) -o xsfc sfc.o smm.o \
+                                    $(SYSdir)/time.o
+	$(ATLRUN) $(MMTdir) xsfc
+
+$(L3Bdir)/kernel/ATL_strsmKL_rk4.o :
+	cd $(L3Bdir)/kernel ; make ATL_strsmKL_rk4.o
+scopytest:  # run cpytest vs generator
+	if [ "X$(CPM)" = "XC" ] ; then  \
+           if test $(TO_BLK) -eq 0 ; then \
+              make gen_blk2C rt=ATL_cptmp.c pre=s vlen=$(vlen) \
+                mu=$(UR) nu=$(ku) kmaj=$(kmaj) alpha=$(alpha) beta=$(beta) ; \
+           else \
+              make gen_C2blk rt=ATL_cptmp.c pre=s vlen=$(vlen) \
+                mu=$(UR) nu=$(ku) kmaj=$(kmaj) alpha=$(alpha) beta=$(beta) ; \
+           fi ; \
+        else  \
+           if test $(TO_BLK) -eq 0 ; then \
+              if test $(TRANS) -eq 0 ; then \
+                 make gen_blk2AT rt=ATL_cptmp.c pre=s vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              else \
+                 make gen_blk2AN rt=ATL_cptmp.c pre=s vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              fi ; \
+           else \
+              if test $(TRANS) -eq 0 ; then \
+                 make gen_AT2blk rt=ATL_cptmp.c pre=s vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              else \
+                 make gen_AN2blk rt=ATL_cptmp.c pre=s vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              fi ; \
+           fi ; \
+        fi 
+	if test $(beta) -eq 0 || test $(beta) -eq 1 ; then \
+           if test $(alpha) -eq 0 || test $(alpha) -eq 1 ; then \
+	      $(MAKE) scpytest szb=$(szb) SKC="$(SKC)" \
+                 SKCFLAGS="$(SKCFLAGS)" betan=$(beta) \
+                 alphan=$(alpha) TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 TRANS=$(TRANS) ku=$(ku) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           elif test $(alpha) -eq -1 ; then \
+	      $(MAKE) scpytest szb=$(szb) SKC="$(SKC)" \
+                 SKCFLAGS="$(SKCFLAGS)" betan=$(beta) \
+                 alphan=N TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 TRANS=$(TRANS) ku=$(ku) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           else \
+	      $(MAKE) scpytest szb=$(szb) SKC="$(SKC)" \
+                 SKCFLAGS="$(SKCFLAGS)" betan=$(beta) \
+                 alphan=X TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 TRANS=$(TRANS) ku=$(ku) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           fi ; \
+        elif test $(beta) -eq -1 ; then \
+           if test $(alpha) -eq 0 || test $(alpha) -eq 1 ; then \
+	      $(MAKE) scpytest szb=$(szb) SKC="$(SKC)" \
+                 SKCFLAGS="$(SKCFLAGS)" betan=N \
+                 alphan=$(alpha) TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           elif test $(alpha) -eq -1 ; then \
+	      $(MAKE) scpytest szb=$(szb) SKC="$(SKC)" \
+                 SKCFLAGS="$(SKCFLAGS)" betan=N \
+                 alphan=N TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           else \
+	      $(MAKE) scpytest szb=$(szb) SKC="$(SKC)" \
+                 SKCFLAGS="$(SKCFLAGS)" betan=N \
+                 alphan=X TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           fi ; \
+        else \
+           if test $(alpha) -eq 0 || test $(alpha) -eq 1 ; then \
+	      $(MAKE) scpytest szb=$(szb) SKC="$(SKC)" \
+                 SKCFLAGS="$(SKCFLAGS)" betan=X \
+                 alphan=$(alpha) TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           elif test $(alpha) -eq -1 ; then \
+	      $(MAKE) scpytest szb=$(szb) SKC="$(SKC)" \
+                 SKCFLAGS="$(SKCFLAGS)" betan=X \
+                 alphan=N TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           else \
+	      $(MAKE) scpytest szb=$(szb) SKC="$(SKC)" \
+                 SKCFLAGS="$(SKCFLAGS)" betan=X \
+                 alphan=X TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           fi ; \
+        fi 
+scpytest :
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DSREAL=1 -Dmat$(CPM)_=1 \
+           -DALPHA${alphan}=1 -DTO_BLK=$(TO_BLK) -DTrans_=$(TRANS) $(CNJ) \
+           -o scpytest.o $(mySRCdir)/cpytest.c
+	$(KC) $(KCFLAGS) $(CDEFS) -DSREAL=1 -DBETA${betan}=1 \
+           $(CNJ) -DALPHA${alphan}=1 -o scpygood.o \
+           -DATL_USERCPMM=ATL_GOODCPMM -c $(cpgood)
+	$(SKC) $(SKCFLAGS) $(CDEFS) -DSREAL=1 -DBETA${betan}=1 \
+           $(CNJ) -DALPHA${alphan}=1 -o scpychck.o -c $(kfnam)
+	$(CLINKER) $(CLINKFLAGS) -o xscpytest scpytest.o \
+           scpygood.o scpychck.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xscpytest  -b $(mb) $(nb) -s $(szb)
+           
+scpytimeC : 
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DSREAL=1 -DTIME_COPY -DCOPY_C \
+           -DTO_BLK=$(TOBLK) -DCOPYK=$(knam) \
+           -o scpytimeC_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(SKC) $(SKCFLAGS) $(CDEFS) -DSREAL=1 -DBETA${betan}=1 \
+           -DALPHA${alphan}=1 -DATL_MU=$(mu) -DATL_NU=$(nu) \
+           -o scpykern.o -c $(kfnam)
+	$(CLINKER) $(CLINKFLAGS) -o xscpytimeC_pt scpytimeC_pt${bn}.o \
+           scpykern.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xscpytimeC_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) $(MTXD)
+
+scpytime : 
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DSREAL=1 -DTIME_COPY \
+           -DCOPYK=$(knam) -DTO_BLK=$(TOBLK) \
+           -o scpytime_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(SKC) $(SKCFLAGS) $(CDEFS) -DSREAL=1 -DBETA${betan}=1 \
+           -DTRANS$(ta)_=1 -DALPHA${betan}=1 -DATL_MU=$(mu) -DATL_NU=$(nu) \
+           -o scpykern.o -c $(kfnam)
+	$(CLINKER) $(CLINKFLAGS) -o xscpytime_pt scpytime_pt${bn}.o \
+           scpykern.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xscpytime_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) $(MTXD)
+
+strmmcase : force_build $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o
+	- rm -rf $(ctmp).c cpAtmp.c cpBtmp.c cpCtmp.c
+	make gen_blk2C rt=cpCtmp.c pre=s vlen=$(vlen) mu=$(mu) nu=$(nu) \
+	   cpvlen=$(cpvlen) alpha=1 beta=0; \
+	$(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -c cpCtmp.c \
+           	    -DATL_USERCPMM=BLK2C ; \
+	if [ "X$(sd)" = "XL" ] ; then \
+       	   make gen_AN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 rt=cpBtmp.c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -c cpBtmp.c \
+           	    -DATL_USERCPMM=B2BLK ; \
+	   if [ "X$(up)" = "XL" ]; then \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=s vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=1 ; \
+	      	   make gen_tAT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -DLower_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=s vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=2 ; \
+	      	   make gen_tAN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -DLower_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		fi ;\
+	   else \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=s vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=2 ; \
+	      	   make gen_tAT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -DUpper_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=s vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=1 ; \
+	      	   make gen_tAN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -DUpper_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		fi ; \
+	   fi; \
+	else \
+       	   make gen_AT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 rt=cpAtmp.c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -c cpAtmp.c \
+           	    -DATL_USERCPMM=A2BLK ; \
+	   if [ "X$(up)" = "XL" ]; then \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=s vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=3 ; \
+	      	   make gen_tAN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpBtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -DLower_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=s vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=4 ; \
+	      	   make gen_tAT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpBtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -DLower_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		fi ; \
+	   else \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=s vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=4 ; \
+	      	   make gen_tAN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpBtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -DUpper_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=s vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=3 ; \
+	      	   make gen_tAT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 uplo=U \
+		      rt=cpBtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -DUpper_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		fi ; \
+	   fi; \
+	fi ; \
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETAN1=1 -DATL_USERMM=AMM_bn \
+               -DSREAL=1 $(kmoves) -o sAMM_bn.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA0=1 -DATL_USERMM=AMM_b0 \
+               -DSREAL=1 $(kmoves) -o sAMM_b0.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA1=1 -DATL_USERMM=AMM_b1 \
+               -DSREAL=1 $(kmoves) -o sAMM_b1.o -c $(mmrout)
+	$(SKC) $(CDEFS) $(SKCFLAGS) -o sutmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRMM=ATL_sutrmm$(sd)_$(up)$(ta)$(nu)x$(mu)x$(ku) \
+              -DSREAL=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_TRMM=1; \
+	$(CLINKER) $(CLINKFLAGS) -o xsutmtime_pt sutmtime.o \
+          cpCtmp.o sAMM_b0.o sAMM_b1.o sAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+	if [ "X$(sd)" = "XL" ] ; then \
+           $(ATLRUN) $(MMTdir) xsutmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+        else \
+           $(ATLRUN) $(MMTdir) xsutmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(rb) -n $(kb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+	fi; 
+strsmcase : force_build $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o
+	- rm -rf $(ctmp).c cpAtmp.c cpBtmp.c
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETAN1=1 -DATL_USERMM=AMM_bn \
+               -DSREAL=1 $(kmoves) -o sAMM_bn.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA0=1 -DATL_USERMM=AMM_b0 \
+               -DSREAL=1 $(kmoves) -o sAMM_b0.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA1=1 -DATL_USERMM=AMM_b1 \
+               -DSREAL=1 $(kmoves) -o sAMM_b1.o -c $(mmrout)
+	if [ "X$(tALL)" = "XT" ] ; then \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              make gen_AN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_AT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           else \
+              make gen_AT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_AN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           fi ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   make genall_ntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(nu) nu=$(mu) \
+              tALL=$(tALL) rt=$(ctmp).c ; \
+           echo "#define USE_TRANS 1" >> $(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DATL_NONANO=1 -DSREAL=1 -o $(ctmp).o \
+              -DUSE_TRANS=1 -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -o susmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_sutrsm$(sd)_$(up)$(ta)$(nu)x$(mu)$(tALL) \
+              -DSREAL=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xsusmtime_pt susmtime.o \
+          $(ctmp).o sAMM_b0.o sAMM_b1.o sAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+	   if [ "X$(sd)" = "XL" ] ; then \
+             $(ATLRUN) $(MMTdir) xsusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(nu) -un $(mu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+           else \
+             $(ATLRUN) $(MMTdir) xsusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(rb) -n $(kb) -k $(kb) $(FMFS) -um $(nu) -un $(mu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+	   fi ; \
+        else \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              make gen_AN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_AT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           else \
+              make gen_AT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_AN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           fi ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   $(MAKE) genall_ntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(mu) nu=$(nu) \
+              tALL=$(tALL) rt=$(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DATL_NONANO=1 -DSREAL=1 -o $(ctmp).o \
+              -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -o susmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_sutrsm$(sd)_$(up)$(ta)$(mu)x$(nu)$(tALL) \
+              -DSREAL=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xsusmtime_pt susmtime.o \
+          $(ctmp).o sAMM_b0.o sAMM_b1.o sAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+	   if [ "X$(sd)" = "XL" ] ; then \
+             $(ATLRUN) $(MMTdir) xsusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+           else \
+             $(ATLRUN) $(MMTdir) xsusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(rb) -n $(kb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+	   fi ; \
+        fi
+bn = _b${betan}
+sammtime_pt3f${bn}.o : $(mySRCdir)/mmtime_pt3f.c
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DSREAL=1 -DTIME_GEMMK=1 \
+              -o sammtime_pt3f${bn}.o $(mySRCdir)/mmtime_pt3f.c
+xsammtime_pt3f : $(SYSdir)/time.o force_build
+	rm -f smm.c
+	$(MAKE) sammtime_pt3f${bn}.o
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA$(betan)=1 -DMB=$(mb) -DNB=$(nb) \
+	    -DKB=$(kb) -DSREAL=1 $(kmoves) -o sammmKT.o -c $(mmrout)
+	$(CLINKER) $(CLINKFLAGS) -o xsammtime_pt3f \
+	    sammtime_pt3f${bn}.o sammmKT.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xsammtime_pt3f -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) -F $(CFLUSH) $(outF)
+
+bn = _b${betan}
+xssyktime_pt : $(SYSdir)/time.o force_build
+	rm -f smm.c
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DSREAL=1 -DTIME_SYRKK=1 \
+           $(extdefs) -o ssyktime_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA$(betan)=1 -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DSREAL=1 $(kmoves) -o sammmKT.o -c $(mmrout)
+	$(CLINKER) $(CLINKFLAGS) -o xssyktime_pt ssyktime_pt${bn}.o \
+           sammmKT.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xssyktime_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF)
+xsammtime_pt : $(SYSdir)/time.o force_build
+	rm -f smm.c
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DSREAL=1 -DTIME_GEMMK=1 \
+           $(extdefs) -o sammtime_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA$(betan)=1 -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DSREAL=1 $(kmoves) -o sammmKT.o -c $(mmrout)
+	$(CLINKER) $(CLINKFLAGS) -o xsammtime_pt sammtime_pt${bn}.o \
+           sammmKT.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xsammtime_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF)
+dmmlib:
+	cd $(AMMdir) ; $(MAKE) dlib
+
+dfindCE.o : $(mySRCdir)/findCE.c
+	$(KC) $(KCFLAGS) -c -DDREAL -o $@ $(mySRCdir)/findCE.c
+dtfindCE.o : $(mySRCdir)/findCE.c
+	$(KC) $(KCFLAGS) -c -DATL_THREADED_CE -DDREAL -o $@ \
+               $(mySRCdir)/findCE.c
+
+dthrCE :
+	cd $(BLDdir)/src/threads ; $(MAKE) lib.grd
+	cd $(BLDdir)/src/threads/blas/level3 ; $(MAKE) dlib
+	cd $(BLDdir)/src/threads/blas/level3 ; $(MAKE) ATL_dtgemm_CE.o \
+           ATL_dtgemm_bigMN_Kp_CE.o
+xdtfindCE : $(INCAdir)/atlas_type.h $(L3INCdep) dmmlib \
+                 dtfindCE.o dthrCE
+	cd $(GMMdir) ; $(MAKE) ATL_dFindCE_mm.o pre=d typ=DREAL
+	$(CLINKER) $(CLINKFLAGS) -o $@ dtfindCE.o \
+           $(BLDdir)/src/threads/blas/level3/ATL_dtgemm_CE.o \
+           $(BLDdir)/src/threads/blas/level3/ATL_dtgemm_bigMN_Kp_CE.o \
+           $(GMMdir)/ATL_dFindCE_mm.o $(ATLASlib) $(LIBS)
+
+dRunFindCE_thr : xdtfindCE
+	$(ATLRUN) $(MMTdir) xdtfindCE -f res/atlas_tdcacheedge.h
+	cp -f res/atlas_tdcacheedge.h $(INCAdir)/.
+
+xdfindCE : $(INCAdir)/atlas_type.h $(L3INCdep) dmmlib \
+                dfindCE.o
+	cd $(GMMdir) ; $(MAKE) ATL_dFindCE_mm.o pre=d typ=DREAL
+	$(CLINKER) $(CLINKFLAGS) -o $@ dfindCE.o \
+                   $(GMMdir)/ATL_dFindCE_mm.o $(ATLASlib) $(LIBS)
+
+xdtfc : $(INCAdir)/atlas_type.h $(L3INCdep) \
+             $(pre)tfc.o dmmlib
+	cd $(GMMdir) ; $(MAKE) ATL_dbig_mm.o ATL_dsmall_mm.o \
+           pre=d typ=DREAL
+	$(CLINKER) $(CLINKFLAGS) -o $@ dtfc.o \
+              $(GMMdir)/ATL_$(pre)big_mm.o $(GMMdir)/ATL_dsmall_mm.o \
+              $(ATLASlib) $(LIBS)
+
+drbob : $(SYSdir)/time.o xemit_reg $(INCAdir)/atlas_type.h \
+       $(INCAdir)/atlas_dsysinfo.h
+	rm -f fc.o dmm.o dmm.c
+	./xemit_reg x d $(muladd) $(mmrout) $(mb) $(nb) $(kb) $(if) $(nf) \
+                    $(mu) $(nu) $(ku) $(lat) $(beta) > dmm.c
+	$(KC) $(KCFLAGS) -DdREAL -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+              -DKU=$(ku) -DNU=$(nu) -DMU=$(mu) -DLAT=$(lat) -DMULADD=$(muladd) \
+              -DNBmm=ATL_d$(mmrout) -DLDC=$(ldc) -DBETA=$(beta) $(moves) \
+              -o dfc.o -c $(mySRCdir)/fc.c
+	$(DMC) $(CDEFS) $(DMCFLAGS) -c dmm.c
+	$(CLINKER) $(CLINKFLAGS) -o xdfc dfc.o dmm.o \
+                                    $(SYSdir)/time.o
+	$(ATLRUN) $(MMTdir) xdfc
+
+$(L3Bdir)/kernel/ATL_dtrsmKL_rk4.o :
+	cd $(L3Bdir)/kernel ; make ATL_dtrsmKL_rk4.o
+dcopytest:  # run cpytest vs generator
+	if [ "X$(CPM)" = "XC" ] ; then  \
+           if test $(TO_BLK) -eq 0 ; then \
+              make gen_blk2C rt=ATL_cptmp.c pre=d vlen=$(vlen) \
+                mu=$(UR) nu=$(ku) kmaj=$(kmaj) alpha=$(alpha) beta=$(beta) ; \
+           else \
+              make gen_C2blk rt=ATL_cptmp.c pre=d vlen=$(vlen) \
+                mu=$(UR) nu=$(ku) kmaj=$(kmaj) alpha=$(alpha) beta=$(beta) ; \
+           fi ; \
+        else  \
+           if test $(TO_BLK) -eq 0 ; then \
+              if test $(TRANS) -eq 0 ; then \
+                 make gen_blk2AT rt=ATL_cptmp.c pre=d vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              else \
+                 make gen_blk2AN rt=ATL_cptmp.c pre=d vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              fi ; \
+           else \
+              if test $(TRANS) -eq 0 ; then \
+                 make gen_AT2blk rt=ATL_cptmp.c pre=d vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              else \
+                 make gen_AN2blk rt=ATL_cptmp.c pre=d vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              fi ; \
+           fi ; \
+        fi 
+	if test $(beta) -eq 0 || test $(beta) -eq 1 ; then \
+           if test $(alpha) -eq 0 || test $(alpha) -eq 1 ; then \
+	      $(MAKE) dcpytest szb=$(szb) DKC="$(DKC)" \
+                 DKCFLAGS="$(DKCFLAGS)" betan=$(beta) \
+                 alphan=$(alpha) TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 TRANS=$(TRANS) ku=$(ku) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           elif test $(alpha) -eq -1 ; then \
+	      $(MAKE) dcpytest szb=$(szb) DKC="$(DKC)" \
+                 DKCFLAGS="$(DKCFLAGS)" betan=$(beta) \
+                 alphan=N TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 TRANS=$(TRANS) ku=$(ku) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           else \
+	      $(MAKE) dcpytest szb=$(szb) DKC="$(DKC)" \
+                 DKCFLAGS="$(DKCFLAGS)" betan=$(beta) \
+                 alphan=X TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 TRANS=$(TRANS) ku=$(ku) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           fi ; \
+        elif test $(beta) -eq -1 ; then \
+           if test $(alpha) -eq 0 || test $(alpha) -eq 1 ; then \
+	      $(MAKE) dcpytest szb=$(szb) DKC="$(DKC)" \
+                 DKCFLAGS="$(DKCFLAGS)" betan=N \
+                 alphan=$(alpha) TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           elif test $(alpha) -eq -1 ; then \
+	      $(MAKE) dcpytest szb=$(szb) DKC="$(DKC)" \
+                 DKCFLAGS="$(DKCFLAGS)" betan=N \
+                 alphan=N TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           else \
+	      $(MAKE) dcpytest szb=$(szb) DKC="$(DKC)" \
+                 DKCFLAGS="$(DKCFLAGS)" betan=N \
+                 alphan=X TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           fi ; \
+        else \
+           if test $(alpha) -eq 0 || test $(alpha) -eq 1 ; then \
+	      $(MAKE) dcpytest szb=$(szb) DKC="$(DKC)" \
+                 DKCFLAGS="$(DKCFLAGS)" betan=X \
+                 alphan=$(alpha) TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           elif test $(alpha) -eq -1 ; then \
+	      $(MAKE) dcpytest szb=$(szb) DKC="$(DKC)" \
+                 DKCFLAGS="$(DKCFLAGS)" betan=X \
+                 alphan=N TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           else \
+	      $(MAKE) dcpytest szb=$(szb) DKC="$(DKC)" \
+                 DKCFLAGS="$(DKCFLAGS)" betan=X \
+                 alphan=X TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           fi ; \
+        fi 
+dcpytest :
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DDREAL=1 -Dmat$(CPM)_=1 \
+           -DALPHA${alphan}=1 -DTO_BLK=$(TO_BLK) -DTrans_=$(TRANS) $(CNJ) \
+           -o dcpytest.o $(mySRCdir)/cpytest.c
+	$(KC) $(KCFLAGS) $(CDEFS) -DDREAL=1 -DBETA${betan}=1 \
+           $(CNJ) -DALPHA${alphan}=1 -o dcpygood.o \
+           -DATL_USERCPMM=ATL_GOODCPMM -c $(cpgood)
+	$(DKC) $(DKCFLAGS) $(CDEFS) -DDREAL=1 -DBETA${betan}=1 \
+           $(CNJ) -DALPHA${alphan}=1 -o dcpychck.o -c $(kfnam)
+	$(CLINKER) $(CLINKFLAGS) -o xdcpytest dcpytest.o \
+           dcpygood.o dcpychck.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xdcpytest  -b $(mb) $(nb) -s $(szb)
+           
+dcpytimeC : 
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DDREAL=1 -DTIME_COPY -DCOPY_C \
+           -DTO_BLK=$(TOBLK) -DCOPYK=$(knam) \
+           -o dcpytimeC_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(DKC) $(DKCFLAGS) $(CDEFS) -DDREAL=1 -DBETA${betan}=1 \
+           -DALPHA${alphan}=1 -DATL_MU=$(mu) -DATL_NU=$(nu) \
+           -o dcpykern.o -c $(kfnam)
+	$(CLINKER) $(CLINKFLAGS) -o xdcpytimeC_pt dcpytimeC_pt${bn}.o \
+           dcpykern.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xdcpytimeC_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) $(MTXD)
+
+dcpytime : 
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DDREAL=1 -DTIME_COPY \
+           -DCOPYK=$(knam) -DTO_BLK=$(TOBLK) \
+           -o dcpytime_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(DKC) $(DKCFLAGS) $(CDEFS) -DDREAL=1 -DBETA${betan}=1 \
+           -DTRANS$(ta)_=1 -DALPHA${betan}=1 -DATL_MU=$(mu) -DATL_NU=$(nu) \
+           -o dcpykern.o -c $(kfnam)
+	$(CLINKER) $(CLINKFLAGS) -o xdcpytime_pt dcpytime_pt${bn}.o \
+           dcpykern.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xdcpytime_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) $(MTXD)
+
+dtrmmcase : force_build $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o
+	- rm -rf $(ctmp).c cpAtmp.c cpBtmp.c cpCtmp.c
+	make gen_blk2C rt=cpCtmp.c pre=d vlen=$(vlen) mu=$(mu) nu=$(nu) \
+	   cpvlen=$(cpvlen) alpha=1 beta=0; \
+	$(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -c cpCtmp.c \
+           	    -DATL_USERCPMM=BLK2C ; \
+	if [ "X$(sd)" = "XL" ] ; then \
+       	   make gen_AN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 rt=cpBtmp.c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -c cpBtmp.c \
+           	    -DATL_USERCPMM=B2BLK ; \
+	   if [ "X$(up)" = "XL" ]; then \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=d vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=1 ; \
+	      	   make gen_tAT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -DLower_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=d vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=2 ; \
+	      	   make gen_tAN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -DLower_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		fi ;\
+	   else \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=d vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=2 ; \
+	      	   make gen_tAT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -DUpper_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=d vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=1 ; \
+	      	   make gen_tAN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -DUpper_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		fi ; \
+	   fi; \
+	else \
+       	   make gen_AT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 rt=cpAtmp.c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -c cpAtmp.c \
+           	    -DATL_USERCPMM=A2BLK ; \
+	   if [ "X$(up)" = "XL" ]; then \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=d vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=3 ; \
+	      	   make gen_tAN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpBtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -DLower_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=d vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=4 ; \
+	      	   make gen_tAT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpBtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -DLower_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		fi ; \
+	   else \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=d vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=4 ; \
+	      	   make gen_tAN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpBtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -DUpper_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=d vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=3 ; \
+	      	   make gen_tAT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 uplo=U \
+		      rt=cpBtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -DUpper_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		fi ; \
+	   fi; \
+	fi ; \
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETAN1=1 -DATL_USERMM=AMM_bn \
+               -DDREAL=1 $(kmoves) -o dAMM_bn.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA0=1 -DATL_USERMM=AMM_b0 \
+               -DDREAL=1 $(kmoves) -o dAMM_b0.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA1=1 -DATL_USERMM=AMM_b1 \
+               -DDREAL=1 $(kmoves) -o dAMM_b1.o -c $(mmrout)
+	$(DKC) $(CDEFS) $(DKCFLAGS) -o dutmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRMM=ATL_dutrmm$(sd)_$(up)$(ta)$(nu)x$(mu)x$(ku) \
+              -DDREAL=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_TRMM=1; \
+	$(CLINKER) $(CLINKFLAGS) -o xdutmtime_pt dutmtime.o \
+          cpCtmp.o dAMM_b0.o dAMM_b1.o dAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+	if [ "X$(sd)" = "XL" ] ; then \
+           $(ATLRUN) $(MMTdir) xdutmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+        else \
+           $(ATLRUN) $(MMTdir) xdutmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(rb) -n $(kb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+	fi; 
+dtrsmcase : force_build $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o
+	- rm -rf $(ctmp).c cpAtmp.c cpBtmp.c
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETAN1=1 -DATL_USERMM=AMM_bn \
+               -DDREAL=1 $(kmoves) -o dAMM_bn.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA0=1 -DATL_USERMM=AMM_b0 \
+               -DDREAL=1 $(kmoves) -o dAMM_b0.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA1=1 -DATL_USERMM=AMM_b1 \
+               -DDREAL=1 $(kmoves) -o dAMM_b1.o -c $(mmrout)
+	if [ "X$(tALL)" = "XT" ] ; then \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              make gen_AN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_AT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           else \
+              make gen_AT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_AN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           fi ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   make genall_ntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(nu) nu=$(mu) \
+              tALL=$(tALL) rt=$(ctmp).c ; \
+           echo "#define USE_TRANS 1" >> $(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DATL_NONANO=1 -DDREAL=1 -o $(ctmp).o \
+              -DUSE_TRANS=1 -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -o dusmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_dutrsm$(sd)_$(up)$(ta)$(nu)x$(mu)$(tALL) \
+              -DDREAL=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xdusmtime_pt dusmtime.o \
+          $(ctmp).o dAMM_b0.o dAMM_b1.o dAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+	   if [ "X$(sd)" = "XL" ] ; then \
+             $(ATLRUN) $(MMTdir) xdusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(nu) -un $(mu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+           else \
+             $(ATLRUN) $(MMTdir) xdusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(rb) -n $(kb) -k $(kb) $(FMFS) -um $(nu) -un $(mu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+	   fi ; \
+        else \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              make gen_AN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_AT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           else \
+              make gen_AT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_AN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           fi ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   $(MAKE) genall_ntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(mu) nu=$(nu) \
+              tALL=$(tALL) rt=$(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DATL_NONANO=1 -DDREAL=1 -o $(ctmp).o \
+              -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -o dusmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_dutrsm$(sd)_$(up)$(ta)$(mu)x$(nu)$(tALL) \
+              -DDREAL=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xdusmtime_pt dusmtime.o \
+          $(ctmp).o dAMM_b0.o dAMM_b1.o dAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+	   if [ "X$(sd)" = "XL" ] ; then \
+             $(ATLRUN) $(MMTdir) xdusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+           else \
+             $(ATLRUN) $(MMTdir) xdusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(rb) -n $(kb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+	   fi ; \
+        fi
+bn = _b${betan}
+dammtime_pt3f${bn}.o : $(mySRCdir)/mmtime_pt3f.c
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DDREAL=1 -DTIME_GEMMK=1 \
+              -o dammtime_pt3f${bn}.o $(mySRCdir)/mmtime_pt3f.c
+xdammtime_pt3f : $(SYSdir)/time.o force_build
+	rm -f dmm.c
+	$(MAKE) dammtime_pt3f${bn}.o
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA$(betan)=1 -DMB=$(mb) -DNB=$(nb) \
+	    -DKB=$(kb) -DDREAL=1 $(kmoves) -o dammmKT.o -c $(mmrout)
+	$(CLINKER) $(CLINKFLAGS) -o xdammtime_pt3f \
+	    dammtime_pt3f${bn}.o dammmKT.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xdammtime_pt3f -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) -F $(CFLUSH) $(outF)
+
+bn = _b${betan}
+xdsyktime_pt : $(SYSdir)/time.o force_build
+	rm -f dmm.c
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DDREAL=1 -DTIME_SYRKK=1 \
+           $(extdefs) -o dsyktime_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA$(betan)=1 -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DDREAL=1 $(kmoves) -o dammmKT.o -c $(mmrout)
+	$(CLINKER) $(CLINKFLAGS) -o xdsyktime_pt dsyktime_pt${bn}.o \
+           dammmKT.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xdsyktime_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF)
+xdammtime_pt : $(SYSdir)/time.o force_build
+	rm -f dmm.c
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DDREAL=1 -DTIME_GEMMK=1 \
+           $(extdefs) -o dammtime_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA$(betan)=1 -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DDREAL=1 $(kmoves) -o dammmKT.o -c $(mmrout)
+	$(CLINKER) $(CLINKFLAGS) -o xdammtime_pt dammtime_pt${bn}.o \
+           dammmKT.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xdammtime_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF)
+cmmlib:
+	cd $(AMMdir) ; $(MAKE) clib
+
+cfindCE.o : $(mySRCdir)/findCE.c
+	$(KC) $(KCFLAGS) -c -DSCPLX -o $@ $(mySRCdir)/findCE.c
+ctfindCE.o : $(mySRCdir)/findCE.c
+	$(KC) $(KCFLAGS) -c -DATL_THREADED_CE -DSCPLX -o $@ \
+               $(mySRCdir)/findCE.c
+
+cthrCE :
+	cd $(BLDdir)/src/threads ; $(MAKE) lib.grd
+	cd $(BLDdir)/src/threads/blas/level3 ; $(MAKE) clib
+	cd $(BLDdir)/src/threads/blas/level3 ; $(MAKE) ATL_ctgemm_CE.o \
+           ATL_ctgemm_bigMN_Kp_CE.o
+xctfindCE : $(INCAdir)/atlas_type.h $(L3INCdep) cmmlib \
+                 ctfindCE.o cthrCE
+	cd $(GMMdir) ; $(MAKE) ATL_cFindCE_mm.o pre=c typ=SCPLX
+	$(CLINKER) $(CLINKFLAGS) -o $@ ctfindCE.o \
+           $(BLDdir)/src/threads/blas/level3/ATL_ctgemm_CE.o \
+           $(BLDdir)/src/threads/blas/level3/ATL_ctgemm_bigMN_Kp_CE.o \
+           $(GMMdir)/ATL_cFindCE_mm.o $(ATLASlib) $(LIBS)
+
+cRunFindCE_thr : xctfindCE
+	$(ATLRUN) $(MMTdir) xctfindCE -f res/atlas_tccacheedge.h
+	cp -f res/atlas_tccacheedge.h $(INCAdir)/.
+
+xcfindCE : $(INCAdir)/atlas_type.h $(L3INCdep) cmmlib \
+                cfindCE.o
+	cd $(GMMdir) ; $(MAKE) ATL_cFindCE_mm.o pre=c typ=SCPLX
+	$(CLINKER) $(CLINKFLAGS) -o $@ cfindCE.o \
+                   $(GMMdir)/ATL_cFindCE_mm.o $(ATLASlib) $(LIBS)
+
+xctfc : $(INCAdir)/atlas_type.h $(L3INCdep) \
+             $(pre)tfc.o cmmlib
+	cd $(GMMdir) ; $(MAKE) ATL_cbig_mm.o ATL_csmall_mm.o \
+           ATL_csbig_mm.o pre=c typ=SCPLX
+	$(CLINKER) $(CLINKFLAGS) -o $@ ctfc.o \
+              $(GMMdir)/ATL_$(pre)big_mm.o $(GMMdir)/ATL_csmall_mm.o \
+              $(GMMdir)/ATL_csbig_mm.o \
+              $(ATLASlib) $(LIBS)
+
+cammlib:
+	cd $(AMMdir) ; make clib
+cnbtune.o : $(mySRCdir)/cnbtune.c atlas_samm_sum.h
+	$(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -c \
+           -o cnbtune.o $(mySRCdir)/cnbtune.c
+xcnbtune : cnbtune.o cammlib
+	$(CLINKER) $(CLINKFLAGS) -o $@ cnbtune.o $(ATLASlib) $(LIBS)
+crbob : $(SYSdir)/time.o xemit_reg $(INCAdir)/atlas_type.h \
+       $(INCAdir)/atlas_csysinfo.h
+	rm -f fc.o cmm.o cmm.c
+	./xemit_reg x c $(muladd) $(mmrout) $(mb) $(nb) $(kb) $(if) $(nf) \
+                    $(mu) $(nu) $(ku) $(lat) $(beta) > cmm.c
+	$(KC) $(KCFLAGS) -DcREAL -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+              -DKU=$(ku) -DNU=$(nu) -DMU=$(mu) -DLAT=$(lat) -DMULADD=$(muladd) \
+              -DNBmm=ATL_c$(mmrout) -DLDC=$(ldc) -DBETA=$(beta) $(moves) \
+              -o cfc.o -c $(mySRCdir)/fc.c
+	$(SMC) $(CDEFS) $(SMCFLAGS) -c cmm.c
+	$(CLINKER) $(CLINKFLAGS) -o xcfc cfc.o cmm.o \
+                                    $(SYSdir)/time.o
+	$(ATLRUN) $(MMTdir) xcfc
+
+$(L3Bdir)/kernel/ATL_cctrsmKL_rk2.o :
+	cd $(L3Bdir)/kernel ; make ATL_cctrsmKL_rk2.o
+ccopytest:  # run cpytest vs generator
+	if [ "X$(CPM)" = "XC" ] ; then  \
+           if test $(TO_BLK) -eq 0 ; then \
+              make gen_blk2C rt=ATL_cptmp.c pre=c vlen=$(vlen) \
+                mu=$(UR) nu=$(ku) kmaj=$(kmaj) alpha=$(alpha) beta=$(beta) ; \
+           else \
+              make gen_C2blk rt=ATL_cptmp.c pre=c vlen=$(vlen) \
+                mu=$(UR) nu=$(ku) kmaj=$(kmaj) alpha=$(alpha) beta=$(beta) ; \
+           fi ; \
+        else  \
+           if test $(TO_BLK) -eq 0 ; then \
+              if test $(TRANS) -eq 0 ; then \
+                 make gen_cblk2AT rt=ATL_cptmp.c pre=c vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              else \
+                 make gen_cblk2AN rt=ATL_cptmp.c pre=c vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              fi ; \
+           else \
+              if test $(TRANS) -eq 0 ; then \
+                 make gen_cAT2blk rt=ATL_cptmp.c pre=c vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              else \
+                 make gen_cAN2blk rt=ATL_cptmp.c pre=c vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              fi ; \
+           fi ; \
+        fi 
+	if test $(beta) -eq 0 || test $(beta) -eq 1 ; then \
+           if test $(alpha) -eq 0 || test $(alpha) -eq 1 ; then \
+	      $(MAKE) ccpytest szb=$(szb) CKC="$(CKC)" \
+                 CKCFLAGS="$(CKCFLAGS)" betan=$(beta) \
+                 alphan=$(alpha) TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 TRANS=$(TRANS) ku=$(ku) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           elif test $(alpha) -eq -1 ; then \
+	      $(MAKE) ccpytest szb=$(szb) CKC="$(CKC)" \
+                 CKCFLAGS="$(CKCFLAGS)" betan=$(beta) \
+                 alphan=N TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 TRANS=$(TRANS) ku=$(ku) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           else \
+	      $(MAKE) ccpytest szb=$(szb) CKC="$(CKC)" \
+                 CKCFLAGS="$(CKCFLAGS)" betan=$(beta) \
+                 alphan=X TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 TRANS=$(TRANS) ku=$(ku) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           fi ; \
+        elif test $(beta) -eq -1 ; then \
+           if test $(alpha) -eq 0 || test $(alpha) -eq 1 ; then \
+	      $(MAKE) ccpytest szb=$(szb) CKC="$(CKC)" \
+                 CKCFLAGS="$(CKCFLAGS)" betan=N \
+                 alphan=$(alpha) TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           elif test $(alpha) -eq -1 ; then \
+	      $(MAKE) ccpytest szb=$(szb) CKC="$(CKC)" \
+                 CKCFLAGS="$(CKCFLAGS)" betan=N \
+                 alphan=N TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           else \
+	      $(MAKE) ccpytest szb=$(szb) CKC="$(CKC)" \
+                 CKCFLAGS="$(CKCFLAGS)" betan=N \
+                 alphan=X TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           fi ; \
+        else \
+           if test $(alpha) -eq 0 || test $(alpha) -eq 1 ; then \
+	      $(MAKE) ccpytest szb=$(szb) CKC="$(CKC)" \
+                 CKCFLAGS="$(CKCFLAGS)" betan=X \
+                 alphan=$(alpha) TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           elif test $(alpha) -eq -1 ; then \
+	      $(MAKE) ccpytest szb=$(szb) CKC="$(CKC)" \
+                 CKCFLAGS="$(CKCFLAGS)" betan=X \
+                 alphan=N TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           else \
+	      $(MAKE) ccpytest szb=$(szb) CKC="$(CKC)" \
+                 CKCFLAGS="$(CKCFLAGS)" betan=X \
+                 alphan=X TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           fi ; \
+        fi 
+ccpytest :
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DSCPLX=1 -Dmat$(CPM)_=1 \
+           -DALPHA${alphan}=1 -DTO_BLK=$(TO_BLK) -DTrans_=$(TRANS) $(CNJ) \
+           -o ccpytest.o $(mySRCdir)/cpytest.c
+	$(KC) $(KCFLAGS) $(CDEFS) -DSCPLX=1 -DBETA${betan}=1 \
+           $(CNJ) -DALPHA${alphan}=1 -o ccpygood.o \
+           -DATL_USERCPMM=ATL_GOODCPMM -c $(cpgood)
+	$(CKC) $(CKCFLAGS) $(CDEFS) -DSCPLX=1 -DBETA${betan}=1 \
+           $(CNJ) -DALPHA${alphan}=1 -o ccpychck.o -c $(kfnam)
+	$(CLINKER) $(CLINKFLAGS) -o xccpytest ccpytest.o \
+           ccpygood.o ccpychck.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xccpytest  -b $(mb) $(nb) -s $(szb)
+           
+ccpytimeC : 
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DSCPLX=1 -DTIME_COPY -DCOPY_C \
+           -DTO_BLK=$(TOBLK) -DCOPYK=$(knam) \
+           -o ccpytimeC_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(CKC) $(CKCFLAGS) $(CDEFS) -DSCPLX=1 -DBETA${betan}=1 \
+           -DALPHA${alphan}=1 -DATL_MU=$(mu) -DATL_NU=$(nu) \
+           -o ccpykern.o -c $(kfnam)
+	$(CLINKER) $(CLINKFLAGS) -o xccpytimeC_pt ccpytimeC_pt${bn}.o \
+           ccpykern.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xccpytimeC_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) $(MTXD)
+
+ccpytime : 
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DSCPLX=1 -DTIME_COPY \
+           -DCOPYK=$(knam) -DTO_BLK=$(TOBLK) \
+           -o ccpytime_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(CKC) $(CKCFLAGS) $(CDEFS) -DSCPLX=1 -DBETA${betan}=1 \
+           -DTRANS$(ta)_=1 -DALPHA${betan}=1 -DATL_MU=$(mu) -DATL_NU=$(nu) \
+           -o ccpykern.o -c $(kfnam)
+	$(CLINKER) $(CLINKFLAGS) -o xccpytime_pt ccpytime_pt${bn}.o \
+           ccpykern.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xccpytime_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) $(MTXD)
+
+ctrmmcase : force_build $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o
+	- rm -rf $(ctmp).c cpAtmp.c cpBtmp.c cpCtmp.c
+	make gen_blk2C rt=cpCtmp.c pre=c vlen=$(vlen) mu=$(mu) nu=$(nu) \
+	   cpvlen=$(cpvlen) alpha=1 beta=0; \
+	$(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -c cpCtmp.c \
+           	    -DATL_USERCPMM=BLK2C ; \
+	if [ "X$(sd)" = "XL" ] ; then \
+       	   make gen_cAN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 rt=cpBtmp.c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -c cpBtmp.c \
+           	    -DATL_USERCPMM=B2BLK ; \
+	   if [ "X$(up)" = "XL" ]; then \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=c vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=1 ; \
+	      	   make gen_ctAT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -DLower_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=c vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=2 ; \
+	      	   make gen_ctAN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -DLower_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		fi ;\
+	   else \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=c vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=2 ; \
+	      	   make gen_ctAT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -DUpper_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=c vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=1 ; \
+	      	   make gen_ctAN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -DUpper_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		fi ; \
+	   fi; \
+	else \
+       	   make gen_cAT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 rt=cpAtmp.c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -c cpAtmp.c \
+           	    -DATL_USERCPMM=A2BLK ; \
+	   if [ "X$(up)" = "XL" ]; then \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=c vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=3 ; \
+	      	   make gen_ctAN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpBtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -DLower_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=c vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=4 ; \
+	      	   make gen_ctAT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpBtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -DLower_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		fi ; \
+	   else \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=c vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=4 ; \
+	      	   make gen_ctAN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpBtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -DUpper_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=c vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=3 ; \
+	      	   make gen_ctAT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 uplo=U \
+		      rt=cpBtmp.c ;\
+	   	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -DUpper_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		fi ; \
+	   fi; \
+	fi ; \
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETAN1=1 -DATL_USERMM=AMM_bn \
+               -DSCPLX=1 $(kmoves) -o cAMM_bn.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA0=1 -DATL_USERMM=AMM_b0 \
+               -DSCPLX=1 $(kmoves) -o cAMM_b0.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA1=1 -DATL_USERMM=AMM_b1 \
+               -DSCPLX=1 $(kmoves) -o cAMM_b1.o -c $(mmrout)
+	$(SKC) $(CDEFS) $(SKCFLAGS) -o cutmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRMM=ATL_cutrmm$(sd)_$(up)$(ta)$(nu)x$(mu)x$(ku) \
+              -DSCPLX=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_TRMM=1; \
+	$(CLINKER) $(CLINKFLAGS) -o xcutmtime_pt cutmtime.o \
+          cpCtmp.o cAMM_b0.o cAMM_b1.o cAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+	if [ "X$(sd)" = "XL" ] ; then \
+           $(ATLRUN) $(MMTdir) xcutmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+        else \
+           $(ATLRUN) $(MMTdir) xcutmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(rb) -n $(kb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+	fi; 
+ctrsmcase : force_build $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o
+	- rm -rf $(ctmp).c cpAtmp.c cpBtmp.c
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETAN1=1 -DATL_USERMM=AMM_bn \
+               -DSREAL=1 $(kmoves) -o cAMM_bn.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA0=1 -DATL_USERMM=AMM_b0 \
+               -DSREAL=1 $(kmoves) -o cAMM_b0.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA1=1 -DATL_USERMM=AMM_b1 \
+               -DSREAL=1 $(kmoves) -o cAMM_b1.o -c $(mmrout)
+	if [ "X$(tALL)" = "XT" ] ; then \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              make gen_cAN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_cAT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           else \
+              make gen_cAT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_cAN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           fi ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   make genall_cntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(nu) nu=$(mu) \
+              tALL=$(tALL) rt=$(ctmp).c ; \
+           echo "#define USE_TRANS 1" >> $(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DATL_NONANO=1 -DSCPLX=1 -o $(ctmp).o \
+              -DUSE_TRANS=1 -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -o cusmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_cutrsm$(sd)_$(up)$(ta)$(nu)x$(mu)$(tALL) \
+              -DSCPLX=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xcusmtime_pt cusmtime.o \
+          $(ctmp).o cAMM_b0.o cAMM_b1.o cAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+	   if [ "X$(sd)" = "XL" ] ; then \
+             $(ATLRUN) $(MMTdir) xcusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(nu) -un $(mu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+           else \
+             $(ATLRUN) $(MMTdir) xcusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(rb) -n $(kb) -k $(kb) $(FMFS) -um $(nu) -un $(mu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+	   fi ; \
+        else \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              make gen_cAN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_cAT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           else \
+              make gen_cAT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_cAN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           fi ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   $(MAKE) genall_cntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(mu) nu=$(nu) \
+              tALL=$(tALL) rt=$(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DATL_NONANO=1 -DSCPLX=1 -o $(ctmp).o \
+              -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -o cusmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_cutrsm$(sd)_$(up)$(ta)$(mu)x$(nu)$(tALL) \
+              -DSCPLX=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xcusmtime_pt cusmtime.o \
+          $(ctmp).o cAMM_b0.o cAMM_b1.o cAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+	   if [ "X$(sd)" = "XL" ] ; then \
+             $(ATLRUN) $(MMTdir) xcusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+           else \
+             $(ATLRUN) $(MMTdir) xcusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(rb) -n $(kb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+	   fi ; \
+        fi
+
+bn = _b${betan}
+xcsyktime_pt : $(SYSdir)/time.o force_build
+	rm -f cmm.c
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DSCPLX=1 -DTIME_SYRKK=1 \
+           $(extdefs) -o csyktime_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA0=1 -DATL_USERMM=CAMM_b0 \
+               -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DSREAL=1 $(kmoves) -o cCAMM_b0.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA1=1 -DATL_USERMM=CAMM_b1 \
+               -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DSREAL=1 $(kmoves) -o cCAMM_b1.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETAN1=1 -DATL_USERMM=CAMM_bn \
+               -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DSREAL=1 $(kmoves) -o cCAMM_bn.o -c $(mmrout)
+	$(CLINKER) $(CLINKFLAGS) -o xcsyktime_pt csyktime_pt${bn}.o \
+           cCAMM_b0.o cCAMM_b1.o cCAMM_bn.o \
+           $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xcsyktime_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF)
+xcammtime_pt : $(SYSdir)/time.o force_build
+	rm -f cmm.c
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DSCPLX=1 -DTIME_GEMMK=1 \
+           $(extdefs) -o cammtime_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA0=1 -DATL_USERMM=CAMM_b0 \
+               -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DSREAL=1 $(kmoves) -o cCAMM_b0.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA1=1 -DATL_USERMM=CAMM_b1 \
+               -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DSREAL=1 $(kmoves) -o cCAMM_b1.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETAN1=1 -DATL_USERMM=CAMM_bn \
+               -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DSREAL=1 $(kmoves) -o cCAMM_bn.o -c $(mmrout)
+	$(CLINKER) $(CLINKFLAGS) -o xcammtime_pt cammtime_pt${bn}.o \
+           cCAMM_b0.o cCAMM_b1.o cCAMM_bn.o \
+           $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xcammtime_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF)
+zmmlib:
+	cd $(AMMdir) ; $(MAKE) zlib
+
+zfindCE.o : $(mySRCdir)/findCE.c
+	$(KC) $(KCFLAGS) -c -DDCPLX -o $@ $(mySRCdir)/findCE.c
+ztfindCE.o : $(mySRCdir)/findCE.c
+	$(KC) $(KCFLAGS) -c -DATL_THREADED_CE -DDCPLX -o $@ \
+               $(mySRCdir)/findCE.c
+
+zthrCE :
+	cd $(BLDdir)/src/threads ; $(MAKE) lib.grd
+	cd $(BLDdir)/src/threads/blas/level3 ; $(MAKE) zlib
+	cd $(BLDdir)/src/threads/blas/level3 ; $(MAKE) ATL_ztgemm_CE.o \
+           ATL_ztgemm_bigMN_Kp_CE.o
+xztfindCE : $(INCAdir)/atlas_type.h $(L3INCdep) zmmlib \
+                 ztfindCE.o zthrCE
+	cd $(GMMdir) ; $(MAKE) ATL_zFindCE_mm.o pre=z typ=DCPLX
+	$(CLINKER) $(CLINKFLAGS) -o $@ ztfindCE.o \
+           $(BLDdir)/src/threads/blas/level3/ATL_ztgemm_CE.o \
+           $(BLDdir)/src/threads/blas/level3/ATL_ztgemm_bigMN_Kp_CE.o \
+           $(GMMdir)/ATL_zFindCE_mm.o $(ATLASlib) $(LIBS)
+
+zRunFindCE_thr : xztfindCE
+	$(ATLRUN) $(MMTdir) xztfindCE -f res/atlas_tzcacheedge.h
+	cp -f res/atlas_tzcacheedge.h $(INCAdir)/.
+
+xzfindCE : $(INCAdir)/atlas_type.h $(L3INCdep) zmmlib \
+                zfindCE.o
+	cd $(GMMdir) ; $(MAKE) ATL_zFindCE_mm.o pre=z typ=DCPLX
+	$(CLINKER) $(CLINKFLAGS) -o $@ zfindCE.o \
+                   $(GMMdir)/ATL_zFindCE_mm.o $(ATLASlib) $(LIBS)
+
+xztfc : $(INCAdir)/atlas_type.h $(L3INCdep) \
+             $(pre)tfc.o zmmlib
+	cd $(GMMdir) ; $(MAKE) ATL_zbig_mm.o ATL_zsmall_mm.o \
+           ATL_zdbig_mm.o pre=z typ=DCPLX
+	$(CLINKER) $(CLINKFLAGS) -o $@ ztfc.o \
+              $(GMMdir)/ATL_$(pre)big_mm.o $(GMMdir)/ATL_zsmall_mm.o \
+              $(GMMdir)/ATL_zdbig_mm.o \
+              $(ATLASlib) $(LIBS)
+
+zammlib:
+	cd $(AMMdir) ; make zlib
+znbtune.o : $(mySRCdir)/cnbtune.c atlas_damm_sum.h
+	$(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -c \
+           -o znbtune.o $(mySRCdir)/cnbtune.c
+xznbtune : znbtune.o zammlib
+	$(CLINKER) $(CLINKFLAGS) -o $@ znbtune.o $(ATLASlib) $(LIBS)
+zrbob : $(SYSdir)/time.o xemit_reg $(INCAdir)/atlas_type.h \
+       $(INCAdir)/atlas_zsysinfo.h
+	rm -f fc.o zmm.o zmm.c
+	./xemit_reg x z $(muladd) $(mmrout) $(mb) $(nb) $(kb) $(if) $(nf) \
+                    $(mu) $(nu) $(ku) $(lat) $(beta) > zmm.c
+	$(KC) $(KCFLAGS) -DzREAL -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+              -DKU=$(ku) -DNU=$(nu) -DMU=$(mu) -DLAT=$(lat) -DMULADD=$(muladd) \
+              -DNBmm=ATL_z$(mmrout) -DLDC=$(ldc) -DBETA=$(beta) $(moves) \
+              -o zfc.o -c $(mySRCdir)/fc.c
+	$(DMC) $(CDEFS) $(DMCFLAGS) -c zmm.c
+	$(CLINKER) $(CLINKFLAGS) -o xzfc zfc.o zmm.o \
+                                    $(SYSdir)/time.o
+	$(ATLRUN) $(MMTdir) xzfc
+
+$(L3Bdir)/kernel/ATL_zctrsmKL_rk2.o :
+	cd $(L3Bdir)/kernel ; make ATL_zctrsmKL_rk2.o
+zcopytest:  # run cpytest vs generator
+	if [ "X$(CPM)" = "XC" ] ; then  \
+           if test $(TO_BLK) -eq 0 ; then \
+              make gen_blk2C rt=ATL_cptmp.c pre=z vlen=$(vlen) \
+                mu=$(UR) nu=$(ku) kmaj=$(kmaj) alpha=$(alpha) beta=$(beta) ; \
+           else \
+              make gen_C2blk rt=ATL_cptmp.c pre=z vlen=$(vlen) \
+                mu=$(UR) nu=$(ku) kmaj=$(kmaj) alpha=$(alpha) beta=$(beta) ; \
+           fi ; \
+        else  \
+           if test $(TO_BLK) -eq 0 ; then \
+              if test $(TRANS) -eq 0 ; then \
+                 make gen_cblk2AT rt=ATL_cptmp.c pre=z vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              else \
+                 make gen_cblk2AN rt=ATL_cptmp.c pre=z vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              fi ; \
+           else \
+              if test $(TRANS) -eq 0 ; then \
+                 make gen_cAT2blk rt=ATL_cptmp.c pre=z vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              else \
+                 make gen_cAN2blk rt=ATL_cptmp.c pre=z vlen=$(vlen) \
+                   UR=$(UR) ku=$(ku) kmaj=$(kmaj) alpha=$(alpha) ; \
+              fi ; \
+           fi ; \
+        fi 
+	if test $(beta) -eq 0 || test $(beta) -eq 1 ; then \
+           if test $(alpha) -eq 0 || test $(alpha) -eq 1 ; then \
+	      $(MAKE) zcpytest szb=$(szb) ZKC="$(ZKC)" \
+                 ZKCFLAGS="$(ZKCFLAGS)" betan=$(beta) \
+                 alphan=$(alpha) TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 TRANS=$(TRANS) ku=$(ku) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           elif test $(alpha) -eq -1 ; then \
+	      $(MAKE) zcpytest szb=$(szb) ZKC="$(ZKC)" \
+                 ZKCFLAGS="$(ZKCFLAGS)" betan=$(beta) \
+                 alphan=N TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 TRANS=$(TRANS) ku=$(ku) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           else \
+	      $(MAKE) zcpytest szb=$(szb) ZKC="$(ZKC)" \
+                 ZKCFLAGS="$(ZKCFLAGS)" betan=$(beta) \
+                 alphan=X TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 TRANS=$(TRANS) ku=$(ku) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           fi ; \
+        elif test $(beta) -eq -1 ; then \
+           if test $(alpha) -eq 0 || test $(alpha) -eq 1 ; then \
+	      $(MAKE) zcpytest szb=$(szb) ZKC="$(ZKC)" \
+                 ZKCFLAGS="$(ZKCFLAGS)" betan=N \
+                 alphan=$(alpha) TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           elif test $(alpha) -eq -1 ; then \
+	      $(MAKE) zcpytest szb=$(szb) ZKC="$(ZKC)" \
+                 ZKCFLAGS="$(ZKCFLAGS)" betan=N \
+                 alphan=N TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           else \
+	      $(MAKE) zcpytest szb=$(szb) ZKC="$(ZKC)" \
+                 ZKCFLAGS="$(ZKCFLAGS)" betan=N \
+                 alphan=X TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           fi ; \
+        else \
+           if test $(alpha) -eq 0 || test $(alpha) -eq 1 ; then \
+	      $(MAKE) zcpytest szb=$(szb) ZKC="$(ZKC)" \
+                 ZKCFLAGS="$(ZKCFLAGS)" betan=X \
+                 alphan=$(alpha) TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           elif test $(alpha) -eq -1 ; then \
+	      $(MAKE) zcpytest szb=$(szb) ZKC="$(ZKC)" \
+                 ZKCFLAGS="$(ZKCFLAGS)" betan=X \
+                 alphan=N TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           else \
+	      $(MAKE) zcpytest szb=$(szb) ZKC="$(ZKC)" \
+                 ZKCFLAGS="$(ZKCFLAGS)" betan=X \
+                 alphan=X TO_BLK=$(TO_BLK) knam=$(knam) CNJ=$(CNJ) \
+                 ku=$(ku) TRANS=$(TRANS) cpgood=ATL_cptmp.c kfnam=$(kfnam) ; \
+           fi ; \
+        fi 
+zcpytest :
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DDCPLX=1 -Dmat$(CPM)_=1 \
+           -DALPHA${alphan}=1 -DTO_BLK=$(TO_BLK) -DTrans_=$(TRANS) $(CNJ) \
+           -o zcpytest.o $(mySRCdir)/cpytest.c
+	$(KC) $(KCFLAGS) $(CDEFS) -DDCPLX=1 -DBETA${betan}=1 \
+           $(CNJ) -DALPHA${alphan}=1 -o zcpygood.o \
+           -DATL_USERCPMM=ATL_GOODCPMM -c $(cpgood)
+	$(ZKC) $(ZKCFLAGS) $(CDEFS) -DDCPLX=1 -DBETA${betan}=1 \
+           $(CNJ) -DALPHA${alphan}=1 -o zcpychck.o -c $(kfnam)
+	$(CLINKER) $(CLINKFLAGS) -o xzcpytest zcpytest.o \
+           zcpygood.o zcpychck.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xzcpytest  -b $(mb) $(nb) -s $(szb)
+           
+zcpytimeC : 
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DDCPLX=1 -DTIME_COPY -DCOPY_C \
+           -DTO_BLK=$(TOBLK) -DCOPYK=$(knam) \
+           -o zcpytimeC_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(ZKC) $(ZKCFLAGS) $(CDEFS) -DDCPLX=1 -DBETA${betan}=1 \
+           -DALPHA${alphan}=1 -DATL_MU=$(mu) -DATL_NU=$(nu) \
+           -o zcpykern.o -c $(kfnam)
+	$(CLINKER) $(CLINKFLAGS) -o xzcpytimeC_pt zcpytimeC_pt${bn}.o \
+           zcpykern.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xzcpytimeC_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) $(MTXD)
+
+zcpytime : 
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DDCPLX=1 -DTIME_COPY \
+           -DCOPYK=$(knam) -DTO_BLK=$(TOBLK) \
+           -o zcpytime_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(ZKC) $(ZKCFLAGS) $(CDEFS) -DDCPLX=1 -DBETA${betan}=1 \
+           -DTRANS$(ta)_=1 -DALPHA${betan}=1 -DATL_MU=$(mu) -DATL_NU=$(nu) \
+           -o zcpykern.o -c $(kfnam)
+	$(CLINKER) $(CLINKFLAGS) -o xzcpytime_pt zcpytime_pt${bn}.o \
+           zcpykern.o $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xzcpytime_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) $(MTXD)
+
+ztrmmcase : force_build $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o
+	- rm -rf $(ctmp).c cpAtmp.c cpBtmp.c cpCtmp.c
+	make gen_blk2C rt=cpCtmp.c pre=z vlen=$(vlen) mu=$(mu) nu=$(nu) \
+	   cpvlen=$(cpvlen) alpha=1 beta=0; \
+	$(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -c cpCtmp.c \
+           	    -DATL_USERCPMM=BLK2C ; \
+	if [ "X$(sd)" = "XL" ] ; then \
+       	   make gen_cAN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 rt=cpBtmp.c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -c cpBtmp.c \
+           	    -DATL_USERCPMM=B2BLK ; \
+	   if [ "X$(up)" = "XL" ]; then \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=z vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=1 ; \
+	      	   make gen_ctAT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -DLower_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=z vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=2 ; \
+	      	   make gen_ctAN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -DLower_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		fi ;\
+	   else \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=z vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=2 ; \
+	      	   make gen_ctAT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -DUpper_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=z vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=1 ; \
+	      	   make gen_ctAN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpAtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -DUpper_=1 -c cpAtmp.c \
+              		-DATL_USERCPMM=A2BLK ; \
+		fi ; \
+	   fi; \
+	else \
+       	   make gen_cAT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 rt=cpAtmp.c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -c cpAtmp.c \
+           	    -DATL_USERCPMM=A2BLK ; \
+	   if [ "X$(up)" = "XL" ]; then \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=z vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=3 ; \
+	      	   make gen_ctAN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpBtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -DLower_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=z vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=4 ; \
+	      	   make gen_ctAT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpBtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -DLower_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		fi ; \
+	   else \
+	   	if [ "X$(ta)" = "XN" ] ; then \
+	           make gen_amtrmm rt=$(mmrout) pre=z vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=4 ; \
+	      	   make gen_ctAN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+		      rt=cpBtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -DUpper_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		else \
+	           make gen_amtrmm rt=$(mmrout) pre=z vec=$(vec) mu=$(mu)\
+                      nu=$(nu) ku=$(ku) bcast=$(bcast) kp=$(kp) KB=$(KB) \
+                      pf=$(pf) pfLS=$(pfLS) vlen=$(vlen) TRMM=3 ; \
+	      	   make gen_ctAT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 uplo=U \
+		      rt=cpBtmp.c ;\
+	   	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -DUpper_=1 -c cpBtmp.c \
+              		-DATL_USERCPMM=B2BLK ; \
+		fi ; \
+	   fi; \
+	fi ; \
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETAN1=1 -DATL_USERMM=AMM_bn \
+               -DDCPLX=1 $(kmoves) -o zAMM_bn.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA0=1 -DATL_USERMM=AMM_b0 \
+               -DDCPLX=1 $(kmoves) -o zAMM_b0.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA1=1 -DATL_USERMM=AMM_b1 \
+               -DDCPLX=1 $(kmoves) -o zAMM_b1.o -c $(mmrout)
+	$(DKC) $(CDEFS) $(DKCFLAGS) -o zutmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRMM=ATL_zutrmm$(sd)_$(up)$(ta)$(nu)x$(mu)x$(ku) \
+              -DDCPLX=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_TRMM=1; \
+	$(CLINKER) $(CLINKFLAGS) -o xzutmtime_pt zutmtime.o \
+          cpCtmp.o zAMM_b0.o zAMM_b1.o zAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+	if [ "X$(sd)" = "XL" ] ; then \
+           $(ATLRUN) $(MMTdir) xzutmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+        else \
+           $(ATLRUN) $(MMTdir) xzutmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(rb) -n $(kb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+	fi; 
+ztrsmcase : force_build $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o
+	- rm -rf $(ctmp).c cpAtmp.c cpBtmp.c
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETAN1=1 -DATL_USERMM=AMM_bn \
+               -DDREAL=1 $(kmoves) -o zAMM_bn.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA0=1 -DATL_USERMM=AMM_b0 \
+               -DDREAL=1 $(kmoves) -o zAMM_b0.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA1=1 -DATL_USERMM=AMM_b1 \
+               -DDREAL=1 $(kmoves) -o zAMM_b1.o -c $(mmrout)
+	if [ "X$(tALL)" = "XT" ] ; then \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              make gen_cAN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_cAT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           else \
+              make gen_cAT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_cAN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           fi ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   make genall_cntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(nu) nu=$(mu) \
+              tALL=$(tALL) rt=$(ctmp).c ; \
+           echo "#define USE_TRANS 1" >> $(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DATL_NONANO=1 -DDCPLX=1 -o $(ctmp).o \
+              -DUSE_TRANS=1 -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -o zusmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_zutrsm$(sd)_$(up)$(ta)$(nu)x$(mu)$(tALL) \
+              -DDCPLX=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xzusmtime_pt zusmtime.o \
+          $(ctmp).o zAMM_b0.o zAMM_b1.o zAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+	   if [ "X$(sd)" = "XL" ] ; then \
+             $(ATLRUN) $(MMTdir) xzusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(nu) -un $(mu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+           else \
+             $(ATLRUN) $(MMTdir) xzusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(rb) -n $(kb) -k $(kb) $(FMFS) -um $(nu) -un $(mu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+	   fi ; \
+        else \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              make gen_cAN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_cAT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           else \
+              make gen_cAT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              else \
+                 make gen_cAN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=cpAtmp.c ; \
+              fi ; \
+           fi ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   $(MAKE) genall_cntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(mu) nu=$(nu) \
+              tALL=$(tALL) rt=$(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DATL_NONANO=1 -DDCPLX=1 -o $(ctmp).o \
+              -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -o zusmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_zutrsm$(sd)_$(up)$(ta)$(mu)x$(nu)$(tALL) \
+              -DDCPLX=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xzusmtime_pt zusmtime.o \
+          $(ctmp).o zAMM_b0.o zAMM_b1.o zAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+	   if [ "X$(sd)" = "XL" ] ; then \
+             $(ATLRUN) $(MMTdir) xzusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+           else \
+             $(ATLRUN) $(MMTdir) xzusmtime_pt -p $(NPROC) $(TIDLIST) \
+                -m $(rb) -n $(kb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+                -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+	   fi ; \
+        fi
+
+bn = _b${betan}
+xzsyktime_pt : $(SYSdir)/time.o force_build
+	rm -f zmm.c
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DDCPLX=1 -DTIME_SYRKK=1 \
+           $(extdefs) -o zsyktime_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA0=1 -DATL_USERMM=CAMM_b0 \
+               -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DDREAL=1 $(kmoves) -o zCAMM_b0.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA1=1 -DATL_USERMM=CAMM_b1 \
+               -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DDREAL=1 $(kmoves) -o zCAMM_b1.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETAN1=1 -DATL_USERMM=CAMM_bn \
+               -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DDREAL=1 $(kmoves) -o zCAMM_bn.o -c $(mmrout)
+	$(CLINKER) $(CLINKFLAGS) -o xzsyktime_pt zsyktime_pt${bn}.o \
+           zCAMM_b0.o zCAMM_b1.o zCAMM_bn.o \
+           $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xzsyktime_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF)
+xzammtime_pt : $(SYSdir)/time.o force_build
+	rm -f zmm.c
+	$(KC) $(KCFLAGS) -c -DBETA${betan}=1 -DDCPLX=1 -DTIME_GEMMK=1 \
+           $(extdefs) -o zammtime_pt${bn}.o $(mySRCdir)/mmtime_pt.c
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA0=1 -DATL_USERMM=CAMM_b0 \
+               -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DDREAL=1 $(kmoves) -o zCAMM_b0.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA1=1 -DATL_USERMM=CAMM_b1 \
+               -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DDREAL=1 $(kmoves) -o zCAMM_b1.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETAN1=1 -DATL_USERMM=CAMM_bn \
+               -DMB=$(mb) -DNB=$(nb) -DKB=$(kb) \
+               -DDREAL=1 $(kmoves) -o zCAMM_bn.o -c $(mmrout)
+	$(CLINKER) $(CLINKFLAGS) -o xzammtime_pt zammtime_pt${bn}.o \
+           zCAMM_b0.o zCAMM_b1.o zCAMM_bn.o \
+           $(SYSdir)/time.o $(LIBS)
+	$(ATLRUN) $(MMTdir) xzammtime_pt -p $(NPROC) $(TIDLIST) \
+           -m $(mb) -n $(nb) -k $(kb) -um $(mu) -un $(nu) -uk $(ku) $(FMFS) \
+           -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF)
+
+cwrk3=0
+cammtst: cammmtst
+csyrkcpytst : $(INCAdir)/atlas_type.h $(BINdir)/xextract
+	- rm -f csyrktst.c ATL_ktmp.c
+	$(MAKE) gen_amsyrk rt=ATL_ktmp.c pre=c vec=$(vec) vlen=$(vlen) \
+           mu=$(mu) nu=$(nu) ku=$(ku)
+	if test "$(blk2C)" = "def" ; then \
+           $(extC) -b $(mySRCdir)/micro-cpg.base -o csyrktst.c pre=c \
+           vec=NA -def rtnm ATL_blk2C rout=blk2C -def vl $(vlen) \
+           -def TRI 1 -def mu $(mu) -def nu $(nu) \
+           -def cpvl $(cpvlen) -def beta 0 -def alpha 1 ; \
+        else \
+           echo "#define ATL_USERCPMM ATL_blk2C" > csyrktst.c ; \
+           cat $(blk2C) >> csyrktst.c ; \
+           echo "#undef  ATL_USERCPMM" >> csyrktst.c ; \
+        fi
+	if test "$(CM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> syrktst.c ; \
+           echo "#define ATL_USERCPMM ATL_cm2am" >> csyrktst.c ; \
+           cat $(CM2blk) >> csyrktst.c ; \
+           echo "#undef  ATL_USERCPMM" >> csyrktst.c ; \
+           echo "#undef  ALPHA1" >> syrktst.c ; \
+           echo "#define NO_CM2AM" >> csyrktst.c ; \
+        fi
+	if test "$(RM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> syrktst.c ; \
+           echo "#define ATL_USERCPMM ATL_rm2am" >> csyrktst.c ; \
+           cat $(RM2blk) >> csyrktst.c ; \
+           echo "#undef  ATL_USERCPMM" >> csyrktst.c ; \
+           echo "#undef  ALPHA1" >> syrktst.c ; \
+           echo "#define NO_RM2AM" >> csyrktst.c ; \
+        fi
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def kmaj "$(kmaj)" \
+                -def TRI 1 rout=cammmtst >> csyrktst.c
+	- rm -f cammm_b1.o cammm_b0.o cammm_bn.o
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSCPLX=1 -DBETA1 \
+           -DKB=${kb} -DATL_USERMM=cmm_b1 -o cammm_b1.o -c ATL_ktmp.c
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSCPLX=1 -DBETA0 \
+           -DKB=${kb} -DATL_USERMM=cmm_b0 -o cammm_b0.o -c ATL_ktmp.c
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSCPLX=1 -DBETAN1 \
+           -DKB=${kb} -DATL_USERMM=cmm_bn -o cammm_bn.o -c ATL_ktmp.c
+	$(KC) $(KCFLAGS) -DSCPLX=1 -o xcsyrktst -DATL_CWRK3=$(cwrk3) \
+              csyrktst.c cammm_b1.o cammm_b0.o cammm_bn.o
+	$(ATLRUN) $(MMTdir) xcsyrktst 
+csyrktst : $(INCAdir)/atlas_type.h $(BINdir)/xextract
+	$(extC) -b $(mySRCdir)/micro-cpg.base -o csyrktst.c pre=c \
+           vec=NA -def rtnm ATL_blk2C rout=blk2C -def vl $(vlen) \
+           -def TRI 1 -def mu $(mu) -def nu $(nu) \
+           -def cpvl $(cpvlen) -def beta 0 -def alpha 1
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def kmaj "$(kmaj)" \
+                -def TRI 1 rout=cammmtst >> csyrktst.c
+	- rm -f cammm_b1.o cammm_b0.o cammm_bn.o
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSCPLX=1 -DBETA1 \
+           -DKB=${kb} -DATL_USERMM=cmm_b1 -o cammm_b1.o -c $(mmrout) 
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSCPLX=1 -DBETA0 \
+           -DKB=${kb} -DATL_USERMM=cmm_b0 -o cammm_b0.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSCPLX=1 -DBETAN1 \
+           -DKB=${kb} -DATL_USERMM=cmm_bn -o cammm_bn.o -c $(mmrout)
+	$(KC) $(KCFLAGS) -DSCPLX=1 -o xcsyrktst -DATL_CWRK3=$(cwrk3) \
+              csyrktst.c cammm_b1.o cammm_b0.o cammm_bn.o
+	$(ATLRUN) $(MMTdir) xcsyrktst 
+cammmcpytst : $(INCAdir)/atlas_type.h $(BINdir)/xextract
+	- rm -f cammmtst.c ATL_ktmp.c
+	$(MAKE) gen_amm rt=ATL_ktmp.c pre=c vec=$(vec) vlen=$(vlen) \
+           mu=$(mu) nu=$(nu) ku=$(ku)
+	if test "$(blk2C)" = "def" ; then \
+           $(extC) -b $(mySRCdir)/micro-cpg.base -o cammmtst.c pre=c \
+           vec=NA -def rtnm ATL_blk2C rout=blk2C -def vl $(vlen) \
+           -def TRI 0 -def mu $(mu) -def nu $(nu) \
+           -def cpvl $(cpvlen) -def beta 0 -def alpha 1 ; \
+        else \
+           echo "#define ATL_USERCPMM ATL_blk2C" > cammmtst.c ; \
+           cat $(blk2C) >> cammmtst.c ; \
+           echo "#undef  ATL_USERCPMM" >> cammmtst.c ; \
+        fi
+	if test "$(CM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> ammmtst.c ; \
+           echo "#define ATL_USERCPMM ATL_cm2am" >> cammmtst.c ; \
+           cat $(CM2blk) >> cammmtst.c ; \
+           echo "#undef  ATL_USERCPMM" >> cammmtst.c ; \
+           echo "#undef  ALPHA1" >> ammmtst.c ; \
+           echo "#define NO_CM2AM" >> cammmtst.c ; \
+        fi
+	if test "$(RM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> ammmtst.c ; \
+           echo "#define ATL_USERCPMM ATL_rm2am" >> cammmtst.c ; \
+           cat $(RM2blk) >> cammmtst.c ; \
+           echo "#undef  ATL_USERCPMM" >> cammmtst.c ; \
+           echo "#undef  ALPHA1" >> ammmtst.c ; \
+           echo "#define NO_RM2AM" >> cammmtst.c ; \
+        fi
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def kmaj "$(kmaj)" \
+                -def TRI 0 rout=cammmtst >> cammmtst.c
+	- rm -f cammm_b1.o cammm_b0.o cammm_bn.o
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSCPLX=1 -DBETA1 \
+           -DKB=${kb} -DATL_USERMM=cmm_b1 -o cammm_b1.o -c ATL_ktmp.c
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSCPLX=1 -DBETA0 \
+           -DKB=${kb} -DATL_USERMM=cmm_b0 -o cammm_b0.o -c ATL_ktmp.c
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSCPLX=1 -DBETAN1 \
+           -DKB=${kb} -DATL_USERMM=cmm_bn -o cammm_bn.o -c ATL_ktmp.c
+	$(KC) $(KCFLAGS) -DSCPLX=1 -o xcammmtst -DATL_CWRK3=$(cwrk3) \
+              cammmtst.c cammm_b1.o cammm_b0.o cammm_bn.o
+	$(ATLRUN) $(MMTdir) xcammmtst 
+cammmtst : $(INCAdir)/atlas_type.h $(BINdir)/xextract
+	$(extC) -b $(mySRCdir)/micro-cpg.base -o cammmtst.c pre=c \
+           vec=NA -def rtnm ATL_blk2C rout=blk2C -def vl $(vlen) \
+           -def TRI 0 -def mu $(mu) -def nu $(nu) \
+           -def cpvl $(cpvlen) -def beta 0 -def alpha 1
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def kmaj "$(kmaj)" \
+                -def TRI 0 rout=cammmtst >> cammmtst.c
+	- rm -f cammm_b1.o cammm_b0.o cammm_bn.o
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSCPLX=1 -DBETA1 \
+           -DKB=${kb} -DATL_USERMM=cmm_b1 -o cammm_b1.o -c $(mmrout) 
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSCPLX=1 -DBETA0 \
+           -DKB=${kb} -DATL_USERMM=cmm_b0 -o cammm_b0.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSCPLX=1 -DBETAN1 \
+           -DKB=${kb} -DATL_USERMM=cmm_bn -o cammm_bn.o -c $(mmrout)
+	$(KC) $(KCFLAGS) -DSCPLX=1 -o xcammmtst -DATL_CWRK3=$(cwrk3) \
+              cammmtst.c cammm_b1.o cammm_b0.o cammm_bn.o
+	$(ATLRUN) $(MMTdir) xcammmtst 
+zammtst: zammmtst
+zsyrkcpytst : $(INCAdir)/atlas_type.h $(BINdir)/xextract
+	- rm -f csyrktst.c ATL_ktmp.c
+	$(MAKE) gen_amsyrk rt=ATL_ktmp.c pre=z vec=$(vec) vlen=$(vlen) \
+           mu=$(mu) nu=$(nu) ku=$(ku)
+	if test "$(blk2C)" = "def" ; then \
+           $(extC) -b $(mySRCdir)/micro-cpg.base -o csyrktst.c pre=z \
+           vec=NA -def rtnm ATL_blk2C rout=blk2C -def vl $(vlen) \
+           -def TRI 1 -def mu $(mu) -def nu $(nu) \
+           -def cpvl $(cpvlen) -def beta 0 -def alpha 1 ; \
+        else \
+           echo "#define ATL_USERCPMM ATL_blk2C" > csyrktst.c ; \
+           cat $(blk2C) >> csyrktst.c ; \
+           echo "#undef  ATL_USERCPMM" >> csyrktst.c ; \
+        fi
+	if test "$(CM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> syrktst.c ; \
+           echo "#define ATL_USERCPMM ATL_cm2am" >> csyrktst.c ; \
+           cat $(CM2blk) >> csyrktst.c ; \
+           echo "#undef  ATL_USERCPMM" >> csyrktst.c ; \
+           echo "#undef  ALPHA1" >> syrktst.c ; \
+           echo "#define NO_CM2AM" >> csyrktst.c ; \
+        fi
+	if test "$(RM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> syrktst.c ; \
+           echo "#define ATL_USERCPMM ATL_rm2am" >> csyrktst.c ; \
+           cat $(RM2blk) >> csyrktst.c ; \
+           echo "#undef  ATL_USERCPMM" >> csyrktst.c ; \
+           echo "#undef  ALPHA1" >> syrktst.c ; \
+           echo "#define NO_RM2AM" >> csyrktst.c ; \
+        fi
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def kmaj "$(kmaj)" \
+                -def TRI 1 rout=cammmtst >> csyrktst.c
+	- rm -f zammm_b1.o zammm_b0.o zammm_bn.o
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDCPLX=1 -DBETA1 \
+           -DKB=${kb} -DATL_USERMM=cmm_b1 -o zammm_b1.o -c ATL_ktmp.c
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDCPLX=1 -DBETA0 \
+           -DKB=${kb} -DATL_USERMM=cmm_b0 -o zammm_b0.o -c ATL_ktmp.c
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDCPLX=1 -DBETAN1 \
+           -DKB=${kb} -DATL_USERMM=cmm_bn -o zammm_bn.o -c ATL_ktmp.c
+	$(KC) $(KCFLAGS) -DDCPLX=1 -o xzsyrktst -DATL_CWRK3=$(cwrk3) \
+              csyrktst.c zammm_b1.o zammm_b0.o zammm_bn.o
+	$(ATLRUN) $(MMTdir) xzsyrktst 
+zsyrktst : $(INCAdir)/atlas_type.h $(BINdir)/xextract
+	$(extC) -b $(mySRCdir)/micro-cpg.base -o csyrktst.c pre=z \
+           vec=NA -def rtnm ATL_blk2C rout=blk2C -def vl $(vlen) \
+           -def TRI 1 -def mu $(mu) -def nu $(nu) \
+           -def cpvl $(cpvlen) -def beta 0 -def alpha 1
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def kmaj "$(kmaj)" \
+                -def TRI 1 rout=cammmtst >> csyrktst.c
+	- rm -f zammm_b1.o zammm_b0.o zammm_bn.o
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDCPLX=1 -DBETA1 \
+           -DKB=${kb} -DATL_USERMM=cmm_b1 -o zammm_b1.o -c $(mmrout) 
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDCPLX=1 -DBETA0 \
+           -DKB=${kb} -DATL_USERMM=cmm_b0 -o zammm_b0.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDCPLX=1 -DBETAN1 \
+           -DKB=${kb} -DATL_USERMM=cmm_bn -o zammm_bn.o -c $(mmrout)
+	$(KC) $(KCFLAGS) -DDCPLX=1 -o xzsyrktst -DATL_CWRK3=$(cwrk3) \
+              csyrktst.c zammm_b1.o zammm_b0.o zammm_bn.o
+	$(ATLRUN) $(MMTdir) xzsyrktst 
+zammmcpytst : $(INCAdir)/atlas_type.h $(BINdir)/xextract
+	- rm -f cammmtst.c ATL_ktmp.c
+	$(MAKE) gen_amm rt=ATL_ktmp.c pre=z vec=$(vec) vlen=$(vlen) \
+           mu=$(mu) nu=$(nu) ku=$(ku)
+	if test "$(blk2C)" = "def" ; then \
+           $(extC) -b $(mySRCdir)/micro-cpg.base -o cammmtst.c pre=z \
+           vec=NA -def rtnm ATL_blk2C rout=blk2C -def vl $(vlen) \
+           -def TRI 0 -def mu $(mu) -def nu $(nu) \
+           -def cpvl $(cpvlen) -def beta 0 -def alpha 1 ; \
+        else \
+           echo "#define ATL_USERCPMM ATL_blk2C" > cammmtst.c ; \
+           cat $(blk2C) >> cammmtst.c ; \
+           echo "#undef  ATL_USERCPMM" >> cammmtst.c ; \
+        fi
+	if test "$(CM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> ammmtst.c ; \
+           echo "#define ATL_USERCPMM ATL_cm2am" >> cammmtst.c ; \
+           cat $(CM2blk) >> cammmtst.c ; \
+           echo "#undef  ATL_USERCPMM" >> cammmtst.c ; \
+           echo "#undef  ALPHA1" >> ammmtst.c ; \
+           echo "#define NO_CM2AM" >> cammmtst.c ; \
+        fi
+	if test "$(RM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> ammmtst.c ; \
+           echo "#define ATL_USERCPMM ATL_rm2am" >> cammmtst.c ; \
+           cat $(RM2blk) >> cammmtst.c ; \
+           echo "#undef  ATL_USERCPMM" >> cammmtst.c ; \
+           echo "#undef  ALPHA1" >> ammmtst.c ; \
+           echo "#define NO_RM2AM" >> cammmtst.c ; \
+        fi
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def kmaj "$(kmaj)" \
+                -def TRI 0 rout=cammmtst >> cammmtst.c
+	- rm -f zammm_b1.o zammm_b0.o zammm_bn.o
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDCPLX=1 -DBETA1 \
+           -DKB=${kb} -DATL_USERMM=cmm_b1 -o zammm_b1.o -c ATL_ktmp.c
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDCPLX=1 -DBETA0 \
+           -DKB=${kb} -DATL_USERMM=cmm_b0 -o zammm_b0.o -c ATL_ktmp.c
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDCPLX=1 -DBETAN1 \
+           -DKB=${kb} -DATL_USERMM=cmm_bn -o zammm_bn.o -c ATL_ktmp.c
+	$(KC) $(KCFLAGS) -DDCPLX=1 -o xzammmtst -DATL_CWRK3=$(cwrk3) \
+              cammmtst.c zammm_b1.o zammm_b0.o zammm_bn.o
+	$(ATLRUN) $(MMTdir) xzammmtst 
+zammmtst : $(INCAdir)/atlas_type.h $(BINdir)/xextract
+	$(extC) -b $(mySRCdir)/micro-cpg.base -o cammmtst.c pre=z \
+           vec=NA -def rtnm ATL_blk2C rout=blk2C -def vl $(vlen) \
+           -def TRI 0 -def mu $(mu) -def nu $(nu) \
+           -def cpvl $(cpvlen) -def beta 0 -def alpha 1
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def kmaj "$(kmaj)" \
+                -def TRI 0 rout=cammmtst >> cammmtst.c
+	- rm -f zammm_b1.o zammm_b0.o zammm_bn.o
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDCPLX=1 -DBETA1 \
+           -DKB=${kb} -DATL_USERMM=cmm_b1 -o zammm_b1.o -c $(mmrout) 
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDCPLX=1 -DBETA0 \
+           -DKB=${kb} -DATL_USERMM=cmm_b0 -o zammm_b0.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDCPLX=1 -DBETAN1 \
+           -DKB=${kb} -DATL_USERMM=cmm_bn -o zammm_bn.o -c $(mmrout)
+	$(KC) $(KCFLAGS) -DDCPLX=1 -o xzammmtst -DATL_CWRK3=$(cwrk3) \
+              cammmtst.c zammm_b1.o zammm_b0.o zammm_bn.o
+	$(ATLRUN) $(MMTdir) xzammmtst 
+ssyrkcpytst: 
+	$(MAKE) gen_amsyrk rt=ATL_ktmp.c pre=s vec=$(vec) vlen=$(vlen) \
+           mu=$(mu) nu=$(nu) ku=$(ku)
+	rm -f syrktst.c
+	if test "$(blk2C)" = "def" ; then \
+           $(extC) -b $(mySRCdir)/micro-cpg.base -o syrktst.c pre=s \
+           vec=NA rout=blk2C -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+           -def cpvl $(cpvlen) -def beta 0 -def alpha 1 -def rtnm ATL_blk2C \
+           -def TRI 1 ; \
+        else \
+           echo "#define ATL_USERCPMM ATL_blk2C" > syrktst.c ; \
+           echo "#define BETA0" >> syrktst.c ; \
+           echo "#define ALPHA1" >> syrktst.c ; \
+           cat $(blk2C) >> syrktst.c ; \
+           echo "#undef  ATL_USERCPMM" >> syrktst.c ; \
+           echo "#undef  BETA0" >> syrktst.c ; \
+           echo "#undef  ALPHA1" >> syrktst.c ; \
+        fi
+	if test "$(C2blk)" = "def" ; then \
+           $(extC) -b $(mySRCdir)/micro-cpg.base pre=s vec=NA \
+                rout=C2blk -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def rtnm ATL_C2blk -def TRI 1 \
+                -def cpvl $(cpvlen) -def beta 0 -def alpha 1 >> syrktst.c ; \
+        else \
+           cat $(C2blk) >> syrktst.c ; \
+        fi
+	if test "$(CM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> syrktst.c ; \
+           echo "#define ATL_USERCPMM ATL_cm2am" >> syrktst.c ; \
+           cat $(CM2blk) >> syrktst.c ; \
+           echo "#undef  ATL_USERCPMM" >> syrktst.c ; \
+           echo "#undef  ALPHA1" >> syrktst.c ; \
+           echo "#define NO_CM2AM" >> syrktst.c ; \
+        fi
+	if test "$(RM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> syrktst.c ; \
+           echo "#define ATL_USERCPMM ATL_rm2am" >> syrktst.c ; \
+           cat $(RM2blk) >> syrktst.c ; \
+           echo "#undef  ATL_USERCPMM" >> syrktst.c ; \
+           echo "#undef  ALPHA1" >> syrktst.c ; \
+           echo "#define NO_RM2AM" >> syrktst.c ; \
+        fi
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def dupB "${dupB}" \
+                -def kmaj "${kmaj}" -def TRI 1 rout=ammmtst >> syrktst.c
+	- rm -f sammm.o
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSREAL=1 -DBETA${betan} \
+           -DKB=${kb} -o sammm.o -c ATL_ktmp.c
+	$(KC) $(KCFLAGS) -DSREAL=1 -o xssyrktst syrktst.c sammm.o
+	$(ATLRUN) $(MMTdir) xssyrktst 
+sammtst: sammmtst
+ssyrktst : $(INCAdir)/atlas_type.h $(BINdir)/xextract
+	$(extC) -b $(mySRCdir)/micro-cpg.base -o syrktst.c pre=s vec=NA \
+                rout=blk2C -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def cpvl $(cpvlen) -def beta 0 -def alpha 1 \
+                -def rtnm ATL_blk2C -def TRI 1
+	$(extC) -b $(mySRCdir)/micro-cpg.base pre=s vec=NA \
+                rout=C2blk -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def rtnm ATL_C2blk -def TRI 1 \
+                -def cpvl $(cpvlen) -def beta 0 -def alpha 1 >> syrktst.c
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def dupB "${dupB}" \
+                -def kmaj "${kmaj}" -def TRI 1 rout=ammmtst >> syrktst.c
+	- rm -f sammm.o
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSREAL=1 -DBETA${betan} \
+           -DKB=${kb} -o sammm.o -c $(mmrout)
+	$(KC) $(KCFLAGS) -DSREAL=1 -o xssyrktst syrktst.c sammm.o
+	$(ATLRUN) $(MMTdir) xssyrktst 
+sammmcpytst: 
+	$(MAKE) gen_amm rt=ATL_ktmp.c pre=s vec=$(vec) vlen=$(vlen) \
+           mu=$(mu) nu=$(nu) ku=$(ku)
+	rm -f ammmtst.c
+	if test "$(blk2C)" = "def" ; then \
+           $(extC) -b $(mySRCdir)/micro-cpg.base -o ammmtst.c pre=s \
+           vec=NA rout=blk2C -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+           -def cpvl $(cpvlen) -def beta 0 -def alpha 1 -def rtnm ATL_blk2C \
+           -def TRI 0 ; \
+        else \
+           echo "#define ATL_USERCPMM ATL_blk2C" > ammmtst.c ; \
+           echo "#define BETA0" >> ammmtst.c ; \
+           echo "#define ALPHA1" >> ammmtst.c ; \
+           cat $(blk2C) >> ammmtst.c ; \
+           echo "#undef  ATL_USERCPMM" >> ammmtst.c ; \
+           echo "#undef  BETA0" >> ammmtst.c ; \
+           echo "#undef  ALPHA1" >> ammmtst.c ; \
+        fi
+	if test "$(C2blk)" = "def" ; then \
+           $(extC) -b $(mySRCdir)/micro-cpg.base pre=s vec=NA \
+                rout=C2blk -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def rtnm ATL_C2blk -def TRI 0 \
+                -def cpvl $(cpvlen) -def beta 0 -def alpha 1 >> ammmtst.c ; \
+        else \
+           cat $(C2blk) >> ammmtst.c ; \
+        fi
+	if test "$(CM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> ammmtst.c ; \
+           echo "#define ATL_USERCPMM ATL_cm2am" >> ammmtst.c ; \
+           cat $(CM2blk) >> ammmtst.c ; \
+           echo "#undef  ATL_USERCPMM" >> ammmtst.c ; \
+           echo "#undef  ALPHA1" >> ammmtst.c ; \
+           echo "#define NO_CM2AM" >> ammmtst.c ; \
+        fi
+	if test "$(RM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> ammmtst.c ; \
+           echo "#define ATL_USERCPMM ATL_rm2am" >> ammmtst.c ; \
+           cat $(RM2blk) >> ammmtst.c ; \
+           echo "#undef  ATL_USERCPMM" >> ammmtst.c ; \
+           echo "#undef  ALPHA1" >> ammmtst.c ; \
+           echo "#define NO_RM2AM" >> ammmtst.c ; \
+        fi
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def dupB "${dupB}" \
+                -def kmaj "${kmaj}" -def TRI 0 rout=ammmtst >> ammmtst.c
+	- rm -f sammm.o
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSREAL=1 -DBETA${betan} \
+           -DKB=${kb} -o sammm.o -c ATL_ktmp.c
+	$(KC) $(KCFLAGS) -DSREAL=1 -o xsammmtst ammmtst.c sammm.o
+	$(ATLRUN) $(MMTdir) xsammmtst 
+sammtst: sammmtst
+sammmtst : $(INCAdir)/atlas_type.h $(BINdir)/xextract
+	$(extC) -b $(mySRCdir)/micro-cpg.base -o ammmtst.c pre=s vec=NA \
+                rout=blk2C -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def cpvl $(cpvlen) -def beta 0 -def alpha 1 \
+                -def rtnm ATL_blk2C -def TRI 0
+	$(extC) -b $(mySRCdir)/micro-cpg.base pre=s vec=NA \
+                rout=C2blk -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def rtnm ATL_C2blk -def TRI 0 \
+                -def cpvl $(cpvlen) -def beta 0 -def alpha 1 >> ammmtst.c
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def dupB "${dupB}" \
+                -def kmaj "${kmaj}" -def TRI 0 rout=ammmtst >> ammmtst.c
+	- rm -f sammm.o
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DSREAL=1 -DBETA${betan} \
+           -DKB=${kb} -o sammm.o -c $(mmrout)
+	$(KC) $(KCFLAGS) -DSREAL=1 -o xsammmtst ammmtst.c sammm.o
+	$(ATLRUN) $(MMTdir) xsammmtst 
+sammtst_fko: sammmtst_fko
+sammmtst_fko : $(INCAdir)/atlas_type.h $(BINdir)/xextract
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def dupB "${dupB}" \
+                -def kmaj "${kmaj}" -o ammmtst.c rout=ammmtst
+	- rm -f sammm.o sammm.s
+	$(FKO) $(FKOFLAGS) -o sammm.s $(mmrout)
+	$(GCC) -c ammm.s
+	$(KC) $(KCFLAGS) -DSREAL=1 -o xsammmtst ammmtst.c sammm.o
+	$(ATLRUN) $(MMTdir) xsammmtst 
+dsyrkcpytst: 
+	$(MAKE) gen_amsyrk rt=ATL_ktmp.c pre=d vec=$(vec) vlen=$(vlen) \
+           mu=$(mu) nu=$(nu) ku=$(ku)
+	rm -f syrktst.c
+	if test "$(blk2C)" = "def" ; then \
+           $(extC) -b $(mySRCdir)/micro-cpg.base -o syrktst.c pre=d \
+           vec=NA rout=blk2C -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+           -def cpvl $(cpvlen) -def beta 0 -def alpha 1 -def rtnm ATL_blk2C \
+           -def TRI 1 ; \
+        else \
+           echo "#define ATL_USERCPMM ATL_blk2C" > syrktst.c ; \
+           echo "#define BETA0" >> syrktst.c ; \
+           echo "#define ALPHA1" >> syrktst.c ; \
+           cat $(blk2C) >> syrktst.c ; \
+           echo "#undef  ATL_USERCPMM" >> syrktst.c ; \
+           echo "#undef  BETA0" >> syrktst.c ; \
+           echo "#undef  ALPHA1" >> syrktst.c ; \
+        fi
+	if test "$(C2blk)" = "def" ; then \
+           $(extC) -b $(mySRCdir)/micro-cpg.base pre=d vec=NA \
+                rout=C2blk -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def rtnm ATL_C2blk -def TRI 1 \
+                -def cpvl $(cpvlen) -def beta 0 -def alpha 1 >> syrktst.c ; \
+        else \
+           cat $(C2blk) >> syrktst.c ; \
+        fi
+	if test "$(CM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> syrktst.c ; \
+           echo "#define ATL_USERCPMM ATL_cm2am" >> syrktst.c ; \
+           cat $(CM2blk) >> syrktst.c ; \
+           echo "#undef  ATL_USERCPMM" >> syrktst.c ; \
+           echo "#undef  ALPHA1" >> syrktst.c ; \
+           echo "#define NO_CM2AM" >> syrktst.c ; \
+        fi
+	if test "$(RM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> syrktst.c ; \
+           echo "#define ATL_USERCPMM ATL_rm2am" >> syrktst.c ; \
+           cat $(RM2blk) >> syrktst.c ; \
+           echo "#undef  ATL_USERCPMM" >> syrktst.c ; \
+           echo "#undef  ALPHA1" >> syrktst.c ; \
+           echo "#define NO_RM2AM" >> syrktst.c ; \
+        fi
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def dupB "${dupB}" \
+                -def kmaj "${kmaj}" -def TRI 1 rout=ammmtst >> syrktst.c
+	- rm -f dammm.o
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDREAL=1 -DBETA${betan} \
+           -DKB=${kb} -o dammm.o -c ATL_ktmp.c
+	$(KC) $(KCFLAGS) -DDREAL=1 -o xdsyrktst syrktst.c dammm.o
+	$(ATLRUN) $(MMTdir) xdsyrktst 
+dammtst: dammmtst
+dsyrktst : $(INCAdir)/atlas_type.h $(BINdir)/xextract
+	$(extC) -b $(mySRCdir)/micro-cpg.base -o syrktst.c pre=d vec=NA \
+                rout=blk2C -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def cpvl $(cpvlen) -def beta 0 -def alpha 1 \
+                -def rtnm ATL_blk2C -def TRI 1
+	$(extC) -b $(mySRCdir)/micro-cpg.base pre=d vec=NA \
+                rout=C2blk -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def rtnm ATL_C2blk -def TRI 1 \
+                -def cpvl $(cpvlen) -def beta 0 -def alpha 1 >> syrktst.c
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def dupB "${dupB}" \
+                -def kmaj "${kmaj}" -def TRI 1 rout=ammmtst >> syrktst.c
+	- rm -f dammm.o
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDREAL=1 -DBETA${betan} \
+           -DKB=${kb} -o dammm.o -c $(mmrout)
+	$(KC) $(KCFLAGS) -DDREAL=1 -o xdsyrktst syrktst.c dammm.o
+	$(ATLRUN) $(MMTdir) xdsyrktst 
+dammmcpytst: 
+	$(MAKE) gen_amm rt=ATL_ktmp.c pre=d vec=$(vec) vlen=$(vlen) \
+           mu=$(mu) nu=$(nu) ku=$(ku)
+	rm -f ammmtst.c
+	if test "$(blk2C)" = "def" ; then \
+           $(extC) -b $(mySRCdir)/micro-cpg.base -o ammmtst.c pre=d \
+           vec=NA rout=blk2C -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+           -def cpvl $(cpvlen) -def beta 0 -def alpha 1 -def rtnm ATL_blk2C \
+           -def TRI 0 ; \
+        else \
+           echo "#define ATL_USERCPMM ATL_blk2C" > ammmtst.c ; \
+           echo "#define BETA0" >> ammmtst.c ; \
+           echo "#define ALPHA1" >> ammmtst.c ; \
+           cat $(blk2C) >> ammmtst.c ; \
+           echo "#undef  ATL_USERCPMM" >> ammmtst.c ; \
+           echo "#undef  BETA0" >> ammmtst.c ; \
+           echo "#undef  ALPHA1" >> ammmtst.c ; \
+        fi
+	if test "$(C2blk)" = "def" ; then \
+           $(extC) -b $(mySRCdir)/micro-cpg.base pre=d vec=NA \
+                rout=C2blk -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def rtnm ATL_C2blk -def TRI 0 \
+                -def cpvl $(cpvlen) -def beta 0 -def alpha 1 >> ammmtst.c ; \
+        else \
+           cat $(C2blk) >> ammmtst.c ; \
+        fi
+	if test "$(CM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> ammmtst.c ; \
+           echo "#define ATL_USERCPMM ATL_cm2am" >> ammmtst.c ; \
+           cat $(CM2blk) >> ammmtst.c ; \
+           echo "#undef  ATL_USERCPMM" >> ammmtst.c ; \
+           echo "#undef  ALPHA1" >> ammmtst.c ; \
+           echo "#define NO_CM2AM" >> ammmtst.c ; \
+        fi
+	if test "$(RM2blk)" != "def" ; then \
+           echo "#define ALPHA1" >> ammmtst.c ; \
+           echo "#define ATL_USERCPMM ATL_rm2am" >> ammmtst.c ; \
+           cat $(RM2blk) >> ammmtst.c ; \
+           echo "#undef  ATL_USERCPMM" >> ammmtst.c ; \
+           echo "#undef  ALPHA1" >> ammmtst.c ; \
+           echo "#define NO_RM2AM" >> ammmtst.c ; \
+        fi
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def dupB "${dupB}" \
+                -def kmaj "${kmaj}" -def TRI 0 rout=ammmtst >> ammmtst.c
+	- rm -f dammm.o
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDREAL=1 -DBETA${betan} \
+           -DKB=${kb} -o dammm.o -c ATL_ktmp.c
+	$(KC) $(KCFLAGS) -DDREAL=1 -o xdammmtst ammmtst.c dammm.o
+	$(ATLRUN) $(MMTdir) xdammmtst 
+dammtst: dammmtst
+dammmtst : $(INCAdir)/atlas_type.h $(BINdir)/xextract
+	$(extC) -b $(mySRCdir)/micro-cpg.base -o ammmtst.c pre=d vec=NA \
+                rout=blk2C -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def cpvl $(cpvlen) -def beta 0 -def alpha 1 \
+                -def rtnm ATL_blk2C -def TRI 0
+	$(extC) -b $(mySRCdir)/micro-cpg.base pre=d vec=NA \
+                rout=C2blk -def vl $(vlen) -def mu $(mu) -def nu $(nu) \
+                -def rtnm ATL_C2blk -def TRI 0 \
+                -def cpvl $(cpvlen) -def beta 0 -def alpha 1 >> ammmtst.c
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def dupB "${dupB}" \
+                -def kmaj "${kmaj}" -def TRI 0 rout=ammmtst >> ammmtst.c
+	- rm -f dammm.o
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DDREAL=1 -DBETA${betan} \
+           -DKB=${kb} -o dammm.o -c $(mmrout)
+	$(KC) $(KCFLAGS) -DDREAL=1 -o xdammmtst ammmtst.c dammm.o
+	$(ATLRUN) $(MMTdir) xdammmtst 
+dammtst_fko: dammmtst_fko
+dammmtst_fko : $(INCAdir)/atlas_type.h $(BINdir)/xextract
+	$(extC) -def mu "${mu}" -def nu "${nu}" -def be "${beta}" \
+                -def M "${M}" -def N "${N}" -def K "${K}" -def dupB "${dupB}" \
+                -def kmaj "${kmaj}" -o ammmtst.c rout=ammmtst
+	- rm -f dammm.o dammm.s
+	$(FKO) $(FKOFLAGS) -o dammm.s $(mmrout)
+	$(GCC) -c ammm.s
+	$(KC) $(KCFLAGS) -DDREAL=1 -o xdammmtst ammmtst.c dammm.o
+	$(ATLRUN) $(MMTdir) xdammmtst 
+
+
+$(BINdir)/xccobj :
+	cd $(BINdir) ; $(MAKE) xccobj
+xccobj : $(BINdir)/xccobj
+	-@ cp -f $(BINdir)/xccobj .
+	-@ cp -f $(BINdir)/xccobj.exe .
+
+auxlib :
+	cd $(AUXdir) ; $(MAKE) lib
+	touch auxlib
+force_build :
+
+
+GetSysSum.o : $(mySRCdir)/GetSysSum.c
+	$(KC) -c $(KCFLAGS) $(mySRCdir)/GetSysSum.c
+
+gemmtst.o : $(mySRCdir)/gemmtst.c $(INCSdir)/atlas_misc.h \
+            $(INCSdir)/atlas_lvl3.h $(INCSdir)/atlas_tst.h $(INCSdir)/cblas.h
+	$(KC) -c $(KCFLAGS) $(mySRCdir)/gemmtst.c
+xlcm :
+	$(KC) -o xlcm lcm.c
+
+clean :
+	rm -f *.o *.grd
+
+$(pre)tfc.o : $(mySRCdir)/tfc.c $(INCSdir)/atlas_misc.h \
+              $(INCAdir)/atlas_$(pre)sysinfo.h
+	$(KC) -o $@ -c $(KCFLAGS) -D$(typ) $(mySRCdir)/tfc.c \
+                 -DSM_FOUT=$(INCAdir)/$(pre)Xover.h
+

@@ -1,0 +1,1024 @@
+include Make.inc
+mySRCdir = $(SRCdir)/src/blas/ulevel3
+
+all : lib
+lib : dlib slib zlib clib
+clean : sclean dclean cclean zclean
+sobj = ATL_sipsyGetCopyA.o ATL_sipsyGetCopyB.o ATL_sipsymmL.o ATL_sipsymmR.o \
+       ATL_sipsyr2k.o ATL_sipsyrk.o ATL_siptrmmL.o ATL_siptrmmR.o \
+       ATL_siptrsmL.o ATL_siptrsmR.o ATL_sopsyr2k.o ATL_sopsyrk.o \
+       ATL_ssminfoL_LN.o ATL_ssminfoL_LT.o ATL_ssminfoR_LN.o \
+       ATL_ssminfoR_LT.o ATL_ssqsyrk.o ATL_ssyLL2ipBlk.o ATL_ssyLU2ipBlk.o \
+       ATL_ssyRL2ipBlk.o ATL_ssyRU2ipBlk.o ATL_ssymmL.o ATL_ssymmR.o \
+       ATL_ssyr2k.o ATL_ssyrk.o ATL_stminfoL_LN.o ATL_stminfoL_LT.o \
+       ATL_stminfoL_UN.o ATL_stminfoL_UT.o ATL_stminfoR_LN.o \
+       ATL_stminfoR_LT.o ATL_stminfoR_UN.o ATL_stminfoR_UT.o ATL_strmm.o \
+       ATL_strmmL_LN_UT.o ATL_strmmL_LT_UN.o ATL_strmmL_ST.o \
+       ATL_strmmL_alloc.o ATL_strmmR_LN_UT.o ATL_strmmR_LT_UN.o \
+       ATL_strmmR_ST.o ATL_strmmR_alloc.o ATL_strsm.o ATL_strsmL_IP.o \
+       ATL_strsmL_LN_UT.o ATL_strsmL_LT_UN.o ATL_strsmL_alloc.o \
+       ATL_strsmR_IP.o ATL_strsmR_LN_UT.o ATL_strsmR_LT_UN.o \
+       ATL_strsmR_alloc.o ATL_sumsyrk.o ATL_sutrmmL_LN.o ATL_sutrmmL_LT.o \
+       ATL_sutrmmL_UN.o ATL_sutrmmL_UT.o ATL_sutrmmR_LN.o ATL_sutrmmR_LT.o \
+       ATL_sutrmmR_UN.o ATL_sutrmmR_UT.o ATL_sutrsmL_alloc.o \
+       ATL_sutrsmR_alloc.o
+su3dep = $(INCAdir)/atlas_sopgen_view.h 
+ssmdep = $(INCAdir)/atlas_sutrsmL_LN.h $(INCAdir)/atlas_sutrsmL_LT.h \
+         $(INCAdir)/atlas_sutrsmR_LN.h $(INCAdir)/atlas_sutrsmR_LT.h
+stmdep = $(INCAdir)/atlas_sutrmmL_LN.h $(INCAdir)/atlas_sutrmmL_LT.h \
+         $(INCAdir)/atlas_sutrmmR_LN.h $(INCAdir)/atlas_sutrmmR_LT.h
+slib : 
+	$(PMAKE) slib.grd
+slib.grd : $(sobj)
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) $(sobj)
+	$(RANLIB) $(ATLASlib)
+	touch slib.grd
+sclean:
+	- rm -f slib.grd $(sobj)
+
+ATL_ssymmR.o : $(mySRCdir)/ATL_symmR.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_symmR.c
+ATL_ssymmL.o : $(mySRCdir)/ATL_symmL.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_symmL.c
+ATL_sipsyrk.o : $(mySRCdir)/ATL_ipsyrk.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyrk.c
+ATL_sopsyrk.o : $(mySRCdir)/ATL_opsyrk.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_opsyrk.c
+ATL_sumsyrk.o : $(mySRCdir)/ATL_umsyrk.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_umsyrk.c
+ATL_ssqsyrk.o : $(mySRCdir)/ATL_sqsyrk.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_sqsyrk.c
+ATL_ssyrk.o : $(mySRCdir)/ATL_syrk.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_syrk.c
+ATL_sopsyr2k.o : $(mySRCdir)/ATL_opsyr2k.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_opsyr2k.c
+ATL_sipsyr2k.o : $(mySRCdir)/ATL_ipsyr2k.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyr2k.c
+ATL_ssyr2k.o : $(mySRCdir)/ATL_syr2k.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_syr2k.c
+ATL_ssyRU2ipBlk.o : $(mySRCdir)/ATL_syRU2ipBlk.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_syRU2ipBlk.c
+ATL_ssyRL2ipBlk.o : $(mySRCdir)/ATL_syRL2ipBlk.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_syRL2ipBlk.c
+ATL_ssyLU2ipBlk.o : $(mySRCdir)/ATL_syLU2ipBlk.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_syLU2ipBlk.c
+ATL_ssyLL2ipBlk.o : $(mySRCdir)/ATL_syLL2ipBlk.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_syLL2ipBlk.c
+ATL_sipsymmL.o : $(mySRCdir)/ATL_ipsymmL.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsymmL.c
+ATL_sipsymmR.o : $(mySRCdir)/ATL_ipsymmR.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsymmR.c
+ATL_sipsyGetCopyB.o : $(mySRCdir)/ATL_ipsyGetCopyB.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyGetCopyB.c
+ATL_sipsyGetCopyA.o : $(mySRCdir)/ATL_ipsyGetCopyA.c $(su3dep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyGetCopyA.c
+ATL_strmm.o : $(mySRCdir)/ATL_trmm.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm.c
+ATL_siptrsmR.o : $(mySRCdir)/ATL_iptrsm.c $(ssmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrsm.c
+ATL_strsmR_alloc.o : $(mySRCdir)/ATL_trsm_alloc.c $(ssmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_alloc.c
+ATL_strsmR_IP.o : $(mySRCdir)/ATL_trsm_IP.c $(ssmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_IP.c
+ATL_strmmR_ST.o : $(mySRCdir)/ATL_trmm_ST.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_ST.c
+ATL_siptrmmR.o : $(mySRCdir)/ATL_iptrmm.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrmm.c
+ATL_strmmR_alloc.o : $(mySRCdir)/ATL_trmm_alloc.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_alloc.c
+ATL_strsmR_LT_UN.o : $(mySRCdir)/ATL_trsmR_LT_UN.c $(ssmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmR_LT_UN.c
+ATL_strmmR_LT_UN.o : $(mySRCdir)/ATL_trmmR_LT_UN.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmR_LT_UN.c
+ATL_strsmR_LN_UT.o : $(mySRCdir)/ATL_trsmR_LN_UT.c $(ssmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmR_LN_UT.c
+ATL_strmmR_LN_UT.o : $(mySRCdir)/ATL_trmmR_LN_UT.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmR_LN_UT.c
+ATL_ssminfoR_LT.o : $(mySRCdir)/ATL_sminfo.c $(ssmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DTrans_=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_sutrmmR_UT.o : $(mySRCdir)/ATL_utrmmR.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_stminfoR_UT.o : $(mySRCdir)/ATL_tminfo.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_sutrmmR_LT.o : $(mySRCdir)/ATL_utrmmR.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_stminfoR_LT.o : $(mySRCdir)/ATL_tminfo.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_ssminfoR_LN.o : $(mySRCdir)/ATL_sminfo.c $(ssmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DNoTrans_=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_sutrmmR_UN.o : $(mySRCdir)/ATL_utrmmR.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DNoTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_stminfoR_UN.o : $(mySRCdir)/ATL_tminfo.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DNoTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_sutrmmR_LN.o : $(mySRCdir)/ATL_utrmmR.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DNoTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_stminfoR_LN.o : $(mySRCdir)/ATL_tminfo.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DNoTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_siptrsmL.o : $(mySRCdir)/ATL_iptrsm.c $(ssmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrsm.c
+ATL_strsmL_alloc.o : $(mySRCdir)/ATL_trsm_alloc.c $(ssmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_alloc.c
+ATL_strsmL_IP.o : $(mySRCdir)/ATL_trsm_IP.c $(ssmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_IP.c
+ATL_strmmL_ST.o : $(mySRCdir)/ATL_trmm_ST.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_ST.c
+ATL_siptrmmL.o : $(mySRCdir)/ATL_iptrmm.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrmm.c
+ATL_strmmL_alloc.o : $(mySRCdir)/ATL_trmm_alloc.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_alloc.c
+ATL_strsmL_LT_UN.o : $(mySRCdir)/ATL_trsmL_LT_UN.c $(ssmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmL_LT_UN.c
+ATL_strmmL_LT_UN.o : $(mySRCdir)/ATL_trmmL_LT_UN.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmL_LT_UN.c
+ATL_strsmL_LN_UT.o : $(mySRCdir)/ATL_trsmL_LN_UT.c $(ssmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmL_LN_UT.c
+ATL_strmmL_LN_UT.o : $(mySRCdir)/ATL_trmmL_LN_UT.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmL_LN_UT.c
+ATL_ssminfoL_LT.o : $(mySRCdir)/ATL_sminfo.c $(ssmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DTrans_=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_sutrmmL_UT.o : $(mySRCdir)/ATL_utrmmL.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_stminfoL_UT.o : $(mySRCdir)/ATL_tminfo.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_sutrmmL_LT.o : $(mySRCdir)/ATL_utrmmL.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_stminfoL_LT.o : $(mySRCdir)/ATL_tminfo.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_ssminfoL_LN.o : $(mySRCdir)/ATL_sminfo.c $(ssmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DNoTrans_=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_sutrmmL_UN.o : $(mySRCdir)/ATL_utrmmL.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DNoTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_stminfoL_UN.o : $(mySRCdir)/ATL_tminfo.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DNoTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_sutrmmL_LN.o : $(mySRCdir)/ATL_utrmmL.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DNoTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_stminfoL_LN.o : $(mySRCdir)/ATL_tminfo.c $(stmdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -DNoTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_strsm.o : $(mySRCdir)/ATL_trsm.c $(smdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -c -o $@ $(mySRCdir)/ATL_trsm.c
+ATL_sutrsmL_alloc.o : $(mySRCdir)/ATL_utrsmL_alloc.c $(smdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -c -o $@ $(mySRCdir)/ATL_utrsmL_alloc.c
+ATL_sutrsmR_alloc.o : $(mySRCdir)/ATL_utrsmR_alloc.c $(smdep)
+	$(SKC) $(sKCFLAGS) -DSREAL=1 -c -o $@ $(mySRCdir)/ATL_utrsmR_alloc.c
+dobj = ATL_dipsyGetCopyA.o ATL_dipsyGetCopyB.o ATL_dipsymmL.o ATL_dipsymmR.o \
+       ATL_dipsyr2k.o ATL_dipsyrk.o ATL_diptrmmL.o ATL_diptrmmR.o \
+       ATL_diptrsmL.o ATL_diptrsmR.o ATL_dopsyr2k.o ATL_dopsyrk.o \
+       ATL_dsminfoL_LN.o ATL_dsminfoL_LT.o ATL_dsminfoR_LN.o \
+       ATL_dsminfoR_LT.o ATL_dsqsyrk.o ATL_dsyLL2ipBlk.o ATL_dsyLU2ipBlk.o \
+       ATL_dsyRL2ipBlk.o ATL_dsyRU2ipBlk.o ATL_dsymmL.o ATL_dsymmR.o \
+       ATL_dsyr2k.o ATL_dsyrk.o ATL_dtminfoL_LN.o ATL_dtminfoL_LT.o \
+       ATL_dtminfoL_UN.o ATL_dtminfoL_UT.o ATL_dtminfoR_LN.o \
+       ATL_dtminfoR_LT.o ATL_dtminfoR_UN.o ATL_dtminfoR_UT.o ATL_dtrmm.o \
+       ATL_dtrmmL_LN_UT.o ATL_dtrmmL_LT_UN.o ATL_dtrmmL_ST.o \
+       ATL_dtrmmL_alloc.o ATL_dtrmmR_LN_UT.o ATL_dtrmmR_LT_UN.o \
+       ATL_dtrmmR_ST.o ATL_dtrmmR_alloc.o ATL_dtrsm.o ATL_dtrsmL_IP.o \
+       ATL_dtrsmL_LN_UT.o ATL_dtrsmL_LT_UN.o ATL_dtrsmL_alloc.o \
+       ATL_dtrsmR_IP.o ATL_dtrsmR_LN_UT.o ATL_dtrsmR_LT_UN.o \
+       ATL_dtrsmR_alloc.o ATL_dumsyrk.o ATL_dutrmmL_LN.o ATL_dutrmmL_LT.o \
+       ATL_dutrmmL_UN.o ATL_dutrmmL_UT.o ATL_dutrmmR_LN.o ATL_dutrmmR_LT.o \
+       ATL_dutrmmR_UN.o ATL_dutrmmR_UT.o ATL_dutrsmL_alloc.o \
+       ATL_dutrsmR_alloc.o
+du3dep = $(INCAdir)/atlas_dopgen_view.h 
+dsmdep = $(INCAdir)/atlas_dutrsmL_LN.h $(INCAdir)/atlas_dutrsmL_LT.h \
+         $(INCAdir)/atlas_dutrsmR_LN.h $(INCAdir)/atlas_dutrsmR_LT.h
+dtmdep = $(INCAdir)/atlas_dutrmmL_LN.h $(INCAdir)/atlas_dutrmmL_LT.h \
+         $(INCAdir)/atlas_dutrmmR_LN.h $(INCAdir)/atlas_dutrmmR_LT.h
+dlib : 
+	$(PMAKE) dlib.grd
+dlib.grd : $(dobj)
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) $(dobj)
+	$(RANLIB) $(ATLASlib)
+	touch dlib.grd
+dclean:
+	- rm -f dlib.grd $(dobj)
+
+ATL_dsymmR.o : $(mySRCdir)/ATL_symmR.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_symmR.c
+ATL_dsymmL.o : $(mySRCdir)/ATL_symmL.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_symmL.c
+ATL_dipsyrk.o : $(mySRCdir)/ATL_ipsyrk.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyrk.c
+ATL_dopsyrk.o : $(mySRCdir)/ATL_opsyrk.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_opsyrk.c
+ATL_dumsyrk.o : $(mySRCdir)/ATL_umsyrk.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_umsyrk.c
+ATL_dsqsyrk.o : $(mySRCdir)/ATL_sqsyrk.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_sqsyrk.c
+ATL_dsyrk.o : $(mySRCdir)/ATL_syrk.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_syrk.c
+ATL_dopsyr2k.o : $(mySRCdir)/ATL_opsyr2k.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_opsyr2k.c
+ATL_dipsyr2k.o : $(mySRCdir)/ATL_ipsyr2k.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyr2k.c
+ATL_dsyr2k.o : $(mySRCdir)/ATL_syr2k.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_syr2k.c
+ATL_dsyRU2ipBlk.o : $(mySRCdir)/ATL_syRU2ipBlk.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_syRU2ipBlk.c
+ATL_dsyRL2ipBlk.o : $(mySRCdir)/ATL_syRL2ipBlk.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_syRL2ipBlk.c
+ATL_dsyLU2ipBlk.o : $(mySRCdir)/ATL_syLU2ipBlk.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_syLU2ipBlk.c
+ATL_dsyLL2ipBlk.o : $(mySRCdir)/ATL_syLL2ipBlk.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_syLL2ipBlk.c
+ATL_dipsymmL.o : $(mySRCdir)/ATL_ipsymmL.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsymmL.c
+ATL_dipsymmR.o : $(mySRCdir)/ATL_ipsymmR.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsymmR.c
+ATL_dipsyGetCopyB.o : $(mySRCdir)/ATL_ipsyGetCopyB.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyGetCopyB.c
+ATL_dipsyGetCopyA.o : $(mySRCdir)/ATL_ipsyGetCopyA.c $(du3dep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyGetCopyA.c
+ATL_dtrmm.o : $(mySRCdir)/ATL_trmm.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm.c
+ATL_diptrsmR.o : $(mySRCdir)/ATL_iptrsm.c $(dsmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrsm.c
+ATL_dtrsmR_alloc.o : $(mySRCdir)/ATL_trsm_alloc.c $(dsmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_alloc.c
+ATL_dtrsmR_IP.o : $(mySRCdir)/ATL_trsm_IP.c $(dsmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_IP.c
+ATL_dtrmmR_ST.o : $(mySRCdir)/ATL_trmm_ST.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_ST.c
+ATL_diptrmmR.o : $(mySRCdir)/ATL_iptrmm.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrmm.c
+ATL_dtrmmR_alloc.o : $(mySRCdir)/ATL_trmm_alloc.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_alloc.c
+ATL_dtrsmR_LT_UN.o : $(mySRCdir)/ATL_trsmR_LT_UN.c $(dsmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmR_LT_UN.c
+ATL_dtrmmR_LT_UN.o : $(mySRCdir)/ATL_trmmR_LT_UN.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmR_LT_UN.c
+ATL_dtrsmR_LN_UT.o : $(mySRCdir)/ATL_trsmR_LN_UT.c $(dsmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmR_LN_UT.c
+ATL_dtrmmR_LN_UT.o : $(mySRCdir)/ATL_trmmR_LN_UT.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmR_LN_UT.c
+ATL_dsminfoR_LT.o : $(mySRCdir)/ATL_sminfo.c $(dsmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DTrans_=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_dutrmmR_UT.o : $(mySRCdir)/ATL_utrmmR.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_dtminfoR_UT.o : $(mySRCdir)/ATL_tminfo.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_dutrmmR_LT.o : $(mySRCdir)/ATL_utrmmR.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_dtminfoR_LT.o : $(mySRCdir)/ATL_tminfo.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_dsminfoR_LN.o : $(mySRCdir)/ATL_sminfo.c $(dsmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DNoTrans_=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_dutrmmR_UN.o : $(mySRCdir)/ATL_utrmmR.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DNoTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_dtminfoR_UN.o : $(mySRCdir)/ATL_tminfo.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DNoTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_dutrmmR_LN.o : $(mySRCdir)/ATL_utrmmR.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DNoTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_dtminfoR_LN.o : $(mySRCdir)/ATL_tminfo.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DNoTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_diptrsmL.o : $(mySRCdir)/ATL_iptrsm.c $(dsmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrsm.c
+ATL_dtrsmL_alloc.o : $(mySRCdir)/ATL_trsm_alloc.c $(dsmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_alloc.c
+ATL_dtrsmL_IP.o : $(mySRCdir)/ATL_trsm_IP.c $(dsmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_IP.c
+ATL_dtrmmL_ST.o : $(mySRCdir)/ATL_trmm_ST.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_ST.c
+ATL_diptrmmL.o : $(mySRCdir)/ATL_iptrmm.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrmm.c
+ATL_dtrmmL_alloc.o : $(mySRCdir)/ATL_trmm_alloc.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_alloc.c
+ATL_dtrsmL_LT_UN.o : $(mySRCdir)/ATL_trsmL_LT_UN.c $(dsmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmL_LT_UN.c
+ATL_dtrmmL_LT_UN.o : $(mySRCdir)/ATL_trmmL_LT_UN.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmL_LT_UN.c
+ATL_dtrsmL_LN_UT.o : $(mySRCdir)/ATL_trsmL_LN_UT.c $(dsmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmL_LN_UT.c
+ATL_dtrmmL_LN_UT.o : $(mySRCdir)/ATL_trmmL_LN_UT.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmL_LN_UT.c
+ATL_dsminfoL_LT.o : $(mySRCdir)/ATL_sminfo.c $(dsmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DTrans_=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_dutrmmL_UT.o : $(mySRCdir)/ATL_utrmmL.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_dtminfoL_UT.o : $(mySRCdir)/ATL_tminfo.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_dutrmmL_LT.o : $(mySRCdir)/ATL_utrmmL.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_dtminfoL_LT.o : $(mySRCdir)/ATL_tminfo.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_dsminfoL_LN.o : $(mySRCdir)/ATL_sminfo.c $(dsmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DNoTrans_=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_dutrmmL_UN.o : $(mySRCdir)/ATL_utrmmL.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DNoTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_dtminfoL_UN.o : $(mySRCdir)/ATL_tminfo.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DNoTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_dutrmmL_LN.o : $(mySRCdir)/ATL_utrmmL.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DNoTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_dtminfoL_LN.o : $(mySRCdir)/ATL_tminfo.c $(dtmdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -DNoTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_dtrsm.o : $(mySRCdir)/ATL_trsm.c $(smdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -c -o $@ $(mySRCdir)/ATL_trsm.c
+ATL_dutrsmL_alloc.o : $(mySRCdir)/ATL_utrsmL_alloc.c $(smdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -c -o $@ $(mySRCdir)/ATL_utrsmL_alloc.c
+ATL_dutrsmR_alloc.o : $(mySRCdir)/ATL_utrsmR_alloc.c $(smdep)
+	$(DKC) $(dKCFLAGS) -DDREAL=1 -c -o $@ $(mySRCdir)/ATL_utrsmR_alloc.c
+cobj = ATL_cheLL2ipBlk.o ATL_cheLU2ipBlk.o ATL_cheRL2ipBlk.o \
+       ATL_cheRU2ipBlk.o ATL_chemmL.o ATL_chemmR.o ATL_cher2k.o ATL_cherk.o \
+       ATL_cipher2k.o ATL_cipherk.o ATL_cipsyGetCopyA.o ATL_cipsyGetCopyB.o \
+       ATL_cipsymmL.o ATL_cipsymmR.o ATL_cipsyr2k.o ATL_cipsyrk.o \
+       ATL_ciptrmmL.o ATL_ciptrmmR.o ATL_ciptrsmL.o ATL_ciptrsmR.o \
+       ATL_copher2k.o ATL_copherk.o ATL_copsyr2k.o ATL_copsyrk.o \
+       ATL_csminfoL_LN.o ATL_csminfoL_LT.o ATL_csminfoR_LN.o \
+       ATL_csminfoR_LT.o ATL_csqherk.o ATL_csqsyrk.o ATL_csyLL2ipBlk.o \
+       ATL_csyLU2ipBlk.o ATL_csyRL2ipBlk.o ATL_csyRU2ipBlk.o ATL_csymmL.o \
+       ATL_csymmR.o ATL_csyr2k.o ATL_csyrk.o ATL_ctminfoL_LC.o \
+       ATL_ctminfoL_LN.o ATL_ctminfoL_LT.o ATL_ctminfoL_UC.o \
+       ATL_ctminfoL_UN.o ATL_ctminfoL_UT.o ATL_ctminfoR_LC.o \
+       ATL_ctminfoR_LN.o ATL_ctminfoR_LT.o ATL_ctminfoR_UC.o \
+       ATL_ctminfoR_UN.o ATL_ctminfoR_UT.o ATL_ctrmm.o ATL_ctrmmL_LN_UT.o \
+       ATL_ctrmmL_LT_UN.o ATL_ctrmmL_ST.o ATL_ctrmmL_alloc.o \
+       ATL_ctrmmR_LN_UT.o ATL_ctrmmR_LT_UN.o ATL_ctrmmR_ST.o \
+       ATL_ctrmmR_alloc.o ATL_ctrsm.o ATL_ctrsmL_IP.o ATL_ctrsmL_LN_UT.o \
+       ATL_ctrsmL_LT_UN.o ATL_ctrsmL_alloc.o ATL_ctrsmR_IP.o \
+       ATL_ctrsmR_LN_UT.o ATL_ctrsmR_LT_UN.o ATL_ctrsmR_alloc.o ATL_cumherk.o \
+       ATL_cumsyrk.o ATL_cutrmmL_LC.o ATL_cutrmmL_LN.o ATL_cutrmmL_LT.o \
+       ATL_cutrmmL_UC.o ATL_cutrmmL_UN.o ATL_cutrmmL_UT.o ATL_cutrmmR_LC.o \
+       ATL_cutrmmR_LN.o ATL_cutrmmR_LT.o ATL_cutrmmR_UC.o ATL_cutrmmR_UN.o \
+       ATL_cutrmmR_UT.o ATL_cutrsmL_alloc.o ATL_cutrsmR_alloc.o
+cu3dep = $(INCAdir)/atlas_copgen_view.h 
+csmdep = $(INCAdir)/atlas_cutrsmL_LN.h $(INCAdir)/atlas_cutrsmL_LT.h \
+         $(INCAdir)/atlas_cutrsmR_LN.h $(INCAdir)/atlas_cutrsmR_LT.h
+ctmdep = $(INCAdir)/atlas_cutrmmL_LN.h $(INCAdir)/atlas_cutrmmL_LT.h \
+         $(INCAdir)/atlas_cutrmmR_LN.h $(INCAdir)/atlas_cutrmmR_LT.h
+clib : 
+	$(PMAKE) clib.grd
+clib.grd : $(cobj)
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) $(cobj)
+	$(RANLIB) $(ATLASlib)
+	touch clib.grd
+cclean:
+	- rm -f clib.grd $(cobj)
+
+ATL_csymmR.o : $(mySRCdir)/ATL_symmR.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_symmR.c
+ATL_csymmL.o : $(mySRCdir)/ATL_symmL.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_symmL.c
+ATL_cipsyrk.o : $(mySRCdir)/ATL_ipsyrk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyrk.c
+ATL_copsyrk.o : $(mySRCdir)/ATL_opsyrk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_opsyrk.c
+ATL_cumsyrk.o : $(mySRCdir)/ATL_umsyrk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_umsyrk.c
+ATL_csqsyrk.o : $(mySRCdir)/ATL_sqsyrk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_sqsyrk.c
+ATL_csyrk.o : $(mySRCdir)/ATL_syrk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_syrk.c
+ATL_copsyr2k.o : $(mySRCdir)/ATL_opsyr2k.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_opsyr2k.c
+ATL_cipsyr2k.o : $(mySRCdir)/ATL_ipsyr2k.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyr2k.c
+ATL_csyr2k.o : $(mySRCdir)/ATL_syr2k.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_syr2k.c
+ATL_csyRU2ipBlk.o : $(mySRCdir)/ATL_syRU2ipBlk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_syRU2ipBlk.c
+ATL_csyRL2ipBlk.o : $(mySRCdir)/ATL_syRL2ipBlk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_syRL2ipBlk.c
+ATL_csyLU2ipBlk.o : $(mySRCdir)/ATL_syLU2ipBlk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_syLU2ipBlk.c
+ATL_csyLL2ipBlk.o : $(mySRCdir)/ATL_syLL2ipBlk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_syLL2ipBlk.c
+ATL_cipsymmL.o : $(mySRCdir)/ATL_ipsymmL.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsymmL.c
+ATL_cipsymmR.o : $(mySRCdir)/ATL_ipsymmR.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsymmR.c
+ATL_cipsyGetCopyB.o : $(mySRCdir)/ATL_ipsyGetCopyB.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyGetCopyB.c
+ATL_cipsyGetCopyA.o : $(mySRCdir)/ATL_ipsyGetCopyA.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyGetCopyA.c
+ATL_cheRU2ipBlk.o : $(mySRCdir)/ATL_heRU2ipBlk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_heRU2ipBlk.c
+ATL_cheRL2ipBlk.o : $(mySRCdir)/ATL_heRL2ipBlk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_heRL2ipBlk.c
+ATL_cheLU2ipBlk.o : $(mySRCdir)/ATL_heLU2ipBlk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_heLU2ipBlk.c
+ATL_cheLL2ipBlk.o : $(mySRCdir)/ATL_heLL2ipBlk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_heLL2ipBlk.c
+ATL_chemmR.o : $(mySRCdir)/ATL_symmR.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_symmR.c
+ATL_chemmL.o : $(mySRCdir)/ATL_symmL.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_symmL.c
+ATL_cipherk.o : $(mySRCdir)/ATL_ipsyrk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyrk.c
+ATL_copherk.o : $(mySRCdir)/ATL_opsyrk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_opsyrk.c
+ATL_cumherk.o : $(mySRCdir)/ATL_umsyrk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_umsyrk.c
+ATL_csqherk.o : $(mySRCdir)/ATL_sqsyrk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sqsyrk.c
+ATL_cherk.o : $(mySRCdir)/ATL_syrk.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_syrk.c
+ATL_cipher2k.o : $(mySRCdir)/ATL_ipsyr2k.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyr2k.c
+ATL_copher2k.o : $(mySRCdir)/ATL_opsyr2k.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_opsyr2k.c
+ATL_cher2k.o : $(mySRCdir)/ATL_syr2k.c $(cu3dep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_syr2k.c
+ATL_ctrmm.o : $(mySRCdir)/ATL_trmm.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm.c
+ATL_ciptrsmR.o : $(mySRCdir)/ATL_iptrsm.c $(csmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrsm.c
+ATL_ctrsmR_alloc.o : $(mySRCdir)/ATL_trsm_alloc.c $(csmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_alloc.c
+ATL_ctrsmR_IP.o : $(mySRCdir)/ATL_trsm_IP.c $(csmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_IP.c
+ATL_ctrmmR_ST.o : $(mySRCdir)/ATL_trmm_ST.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_ST.c
+ATL_ciptrmmR.o : $(mySRCdir)/ATL_iptrmm.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrmm.c
+ATL_ctrmmR_alloc.o : $(mySRCdir)/ATL_trmm_alloc.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_alloc.c
+ATL_ctrsmR_LT_UN.o : $(mySRCdir)/ATL_trsmR_LT_UN.c $(csmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmR_LT_UN.c
+ATL_ctrmmR_LT_UN.o : $(mySRCdir)/ATL_trmmR_LT_UN.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmR_LT_UN.c
+ATL_ctrsmR_LN_UT.o : $(mySRCdir)/ATL_trsmR_LN_UT.c $(csmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmR_LN_UT.c
+ATL_ctrmmR_LN_UT.o : $(mySRCdir)/ATL_trmmR_LN_UT.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmR_LN_UT.c
+ATL_csminfoR_LT.o : $(mySRCdir)/ATL_sminfo.c $(csmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DTrans_=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_cutrmmR_UT.o : $(mySRCdir)/ATL_utrmmR.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_ctminfoR_UT.o : $(mySRCdir)/ATL_tminfo.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_cutrmmR_LT.o : $(mySRCdir)/ATL_utrmmR.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_ctminfoR_LT.o : $(mySRCdir)/ATL_tminfo.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_csminfoR_LN.o : $(mySRCdir)/ATL_sminfo.c $(csmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DNoTrans_=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_cutrmmR_UN.o : $(mySRCdir)/ATL_utrmmR.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DNoTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_ctminfoR_UN.o : $(mySRCdir)/ATL_tminfo.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DNoTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_cutrmmR_LN.o : $(mySRCdir)/ATL_utrmmR.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DNoTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_ctminfoR_LN.o : $(mySRCdir)/ATL_tminfo.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DNoTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_cutrmmR_UC.o : $(mySRCdir)/ATL_utrmmR.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DRight_=1 -DUpper_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_ctminfoR_UC.o : $(mySRCdir)/ATL_tminfo.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DRight_=1 -DUpper_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_cutrmmR_LC.o : $(mySRCdir)/ATL_utrmmR.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DRight_=1 -DLower_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_ctminfoR_LC.o : $(mySRCdir)/ATL_tminfo.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DRight_=1 -DLower_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_ciptrsmL.o : $(mySRCdir)/ATL_iptrsm.c $(csmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrsm.c
+ATL_ctrsmL_alloc.o : $(mySRCdir)/ATL_trsm_alloc.c $(csmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_alloc.c
+ATL_ctrsmL_IP.o : $(mySRCdir)/ATL_trsm_IP.c $(csmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_IP.c
+ATL_ctrmmL_ST.o : $(mySRCdir)/ATL_trmm_ST.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_ST.c
+ATL_ciptrmmL.o : $(mySRCdir)/ATL_iptrmm.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrmm.c
+ATL_ctrmmL_alloc.o : $(mySRCdir)/ATL_trmm_alloc.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_alloc.c
+ATL_ctrsmL_LT_UN.o : $(mySRCdir)/ATL_trsmL_LT_UN.c $(csmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmL_LT_UN.c
+ATL_ctrmmL_LT_UN.o : $(mySRCdir)/ATL_trmmL_LT_UN.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmL_LT_UN.c
+ATL_ctrsmL_LN_UT.o : $(mySRCdir)/ATL_trsmL_LN_UT.c $(csmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmL_LN_UT.c
+ATL_ctrmmL_LN_UT.o : $(mySRCdir)/ATL_trmmL_LN_UT.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmL_LN_UT.c
+ATL_csminfoL_LT.o : $(mySRCdir)/ATL_sminfo.c $(csmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DTrans_=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_cutrmmL_UT.o : $(mySRCdir)/ATL_utrmmL.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_ctminfoL_UT.o : $(mySRCdir)/ATL_tminfo.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_cutrmmL_LT.o : $(mySRCdir)/ATL_utrmmL.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_ctminfoL_LT.o : $(mySRCdir)/ATL_tminfo.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_csminfoL_LN.o : $(mySRCdir)/ATL_sminfo.c $(csmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DNoTrans_=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_cutrmmL_UN.o : $(mySRCdir)/ATL_utrmmL.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DNoTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_ctminfoL_UN.o : $(mySRCdir)/ATL_tminfo.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DNoTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_cutrmmL_LN.o : $(mySRCdir)/ATL_utrmmL.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DNoTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_ctminfoL_LN.o : $(mySRCdir)/ATL_tminfo.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DNoTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_cutrmmL_UC.o : $(mySRCdir)/ATL_utrmmL.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DLeft_=1 -DUpper_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_ctminfoL_UC.o : $(mySRCdir)/ATL_tminfo.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DLeft_=1 -DUpper_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_cutrmmL_LC.o : $(mySRCdir)/ATL_utrmmL.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DLeft_=1 -DLower_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_ctminfoL_LC.o : $(mySRCdir)/ATL_tminfo.c $(ctmdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -DLeft_=1 -DLower_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_ctrsm.o : $(mySRCdir)/ATL_trsm.c $(smdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -c -o $@ $(mySRCdir)/ATL_trsm.c
+ATL_cutrsmL_alloc.o : $(mySRCdir)/ATL_utrsmL_alloc.c $(smdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -c -o $@ $(mySRCdir)/ATL_utrsmL_alloc.c
+ATL_cutrsmR_alloc.o : $(mySRCdir)/ATL_utrsmR_alloc.c $(smdep)
+	$(CKC) $(cKCFLAGS) -DSCPLX=1 -c -o $@ $(mySRCdir)/ATL_utrsmR_alloc.c
+zobj = ATL_zheLL2ipBlk.o ATL_zheLU2ipBlk.o ATL_zheRL2ipBlk.o \
+       ATL_zheRU2ipBlk.o ATL_zhemmL.o ATL_zhemmR.o ATL_zher2k.o ATL_zherk.o \
+       ATL_zipher2k.o ATL_zipherk.o ATL_zipsyGetCopyA.o ATL_zipsyGetCopyB.o \
+       ATL_zipsymmL.o ATL_zipsymmR.o ATL_zipsyr2k.o ATL_zipsyrk.o \
+       ATL_ziptrmmL.o ATL_ziptrmmR.o ATL_ziptrsmL.o ATL_ziptrsmR.o \
+       ATL_zopher2k.o ATL_zopherk.o ATL_zopsyr2k.o ATL_zopsyrk.o \
+       ATL_zsminfoL_LN.o ATL_zsminfoL_LT.o ATL_zsminfoR_LN.o \
+       ATL_zsminfoR_LT.o ATL_zsqherk.o ATL_zsqsyrk.o ATL_zsyLL2ipBlk.o \
+       ATL_zsyLU2ipBlk.o ATL_zsyRL2ipBlk.o ATL_zsyRU2ipBlk.o ATL_zsymmL.o \
+       ATL_zsymmR.o ATL_zsyr2k.o ATL_zsyrk.o ATL_ztminfoL_LC.o \
+       ATL_ztminfoL_LN.o ATL_ztminfoL_LT.o ATL_ztminfoL_UC.o \
+       ATL_ztminfoL_UN.o ATL_ztminfoL_UT.o ATL_ztminfoR_LC.o \
+       ATL_ztminfoR_LN.o ATL_ztminfoR_LT.o ATL_ztminfoR_UC.o \
+       ATL_ztminfoR_UN.o ATL_ztminfoR_UT.o ATL_ztrmm.o ATL_ztrmmL_LN_UT.o \
+       ATL_ztrmmL_LT_UN.o ATL_ztrmmL_ST.o ATL_ztrmmL_alloc.o \
+       ATL_ztrmmR_LN_UT.o ATL_ztrmmR_LT_UN.o ATL_ztrmmR_ST.o \
+       ATL_ztrmmR_alloc.o ATL_ztrsm.o ATL_ztrsmL_IP.o ATL_ztrsmL_LN_UT.o \
+       ATL_ztrsmL_LT_UN.o ATL_ztrsmL_alloc.o ATL_ztrsmR_IP.o \
+       ATL_ztrsmR_LN_UT.o ATL_ztrsmR_LT_UN.o ATL_ztrsmR_alloc.o ATL_zumherk.o \
+       ATL_zumsyrk.o ATL_zutrmmL_LC.o ATL_zutrmmL_LN.o ATL_zutrmmL_LT.o \
+       ATL_zutrmmL_UC.o ATL_zutrmmL_UN.o ATL_zutrmmL_UT.o ATL_zutrmmR_LC.o \
+       ATL_zutrmmR_LN.o ATL_zutrmmR_LT.o ATL_zutrmmR_UC.o ATL_zutrmmR_UN.o \
+       ATL_zutrmmR_UT.o ATL_zutrsmL_alloc.o ATL_zutrsmR_alloc.o
+zu3dep = $(INCAdir)/atlas_zopgen_view.h 
+zsmdep = $(INCAdir)/atlas_zutrsmL_LN.h $(INCAdir)/atlas_zutrsmL_LT.h \
+         $(INCAdir)/atlas_zutrsmR_LN.h $(INCAdir)/atlas_zutrsmR_LT.h
+ztmdep = $(INCAdir)/atlas_zutrmmL_LN.h $(INCAdir)/atlas_zutrmmL_LT.h \
+         $(INCAdir)/atlas_zutrmmR_LN.h $(INCAdir)/atlas_zutrmmR_LT.h
+zlib : 
+	$(PMAKE) zlib.grd
+zlib.grd : $(zobj)
+	$(ARCHIVER) $(ARFLAGS) $(ATLASlib) $(zobj)
+	$(RANLIB) $(ATLASlib)
+	touch zlib.grd
+zclean:
+	- rm -f zlib.grd $(zobj)
+
+ATL_zsymmR.o : $(mySRCdir)/ATL_symmR.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_symmR.c
+ATL_zsymmL.o : $(mySRCdir)/ATL_symmL.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_symmL.c
+ATL_zipsyrk.o : $(mySRCdir)/ATL_ipsyrk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyrk.c
+ATL_zopsyrk.o : $(mySRCdir)/ATL_opsyrk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_opsyrk.c
+ATL_zumsyrk.o : $(mySRCdir)/ATL_umsyrk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_umsyrk.c
+ATL_zsqsyrk.o : $(mySRCdir)/ATL_sqsyrk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_sqsyrk.c
+ATL_zsyrk.o : $(mySRCdir)/ATL_syrk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_syrk.c
+ATL_zopsyr2k.o : $(mySRCdir)/ATL_opsyr2k.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_opsyr2k.c
+ATL_zipsyr2k.o : $(mySRCdir)/ATL_ipsyr2k.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyr2k.c
+ATL_zsyr2k.o : $(mySRCdir)/ATL_syr2k.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_syr2k.c
+ATL_zsyRU2ipBlk.o : $(mySRCdir)/ATL_syRU2ipBlk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_syRU2ipBlk.c
+ATL_zsyRL2ipBlk.o : $(mySRCdir)/ATL_syRL2ipBlk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_syRL2ipBlk.c
+ATL_zsyLU2ipBlk.o : $(mySRCdir)/ATL_syLU2ipBlk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_syLU2ipBlk.c
+ATL_zsyLL2ipBlk.o : $(mySRCdir)/ATL_syLL2ipBlk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_syLL2ipBlk.c
+ATL_zipsymmL.o : $(mySRCdir)/ATL_ipsymmL.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsymmL.c
+ATL_zipsymmR.o : $(mySRCdir)/ATL_ipsymmR.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsymmR.c
+ATL_zipsyGetCopyB.o : $(mySRCdir)/ATL_ipsyGetCopyB.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyGetCopyB.c
+ATL_zipsyGetCopyA.o : $(mySRCdir)/ATL_ipsyGetCopyA.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyGetCopyA.c
+ATL_zheRU2ipBlk.o : $(mySRCdir)/ATL_heRU2ipBlk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_heRU2ipBlk.c
+ATL_zheRL2ipBlk.o : $(mySRCdir)/ATL_heRL2ipBlk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_heRL2ipBlk.c
+ATL_zheLU2ipBlk.o : $(mySRCdir)/ATL_heLU2ipBlk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_heLU2ipBlk.c
+ATL_zheLL2ipBlk.o : $(mySRCdir)/ATL_heLL2ipBlk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_heLL2ipBlk.c
+ATL_zhemmR.o : $(mySRCdir)/ATL_symmR.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_symmR.c
+ATL_zhemmL.o : $(mySRCdir)/ATL_symmL.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_symmL.c
+ATL_zipherk.o : $(mySRCdir)/ATL_ipsyrk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyrk.c
+ATL_zopherk.o : $(mySRCdir)/ATL_opsyrk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_opsyrk.c
+ATL_zumherk.o : $(mySRCdir)/ATL_umsyrk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_umsyrk.c
+ATL_zsqherk.o : $(mySRCdir)/ATL_sqsyrk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sqsyrk.c
+ATL_zherk.o : $(mySRCdir)/ATL_syrk.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_syrk.c
+ATL_zipher2k.o : $(mySRCdir)/ATL_ipsyr2k.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_ipsyr2k.c
+ATL_zopher2k.o : $(mySRCdir)/ATL_opsyr2k.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_opsyr2k.c
+ATL_zher2k.o : $(mySRCdir)/ATL_syr2k.c $(zu3dep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_syr2k.c
+ATL_ztrmm.o : $(mySRCdir)/ATL_trmm.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm.c
+ATL_ziptrsmR.o : $(mySRCdir)/ATL_iptrsm.c $(zsmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrsm.c
+ATL_ztrsmR_alloc.o : $(mySRCdir)/ATL_trsm_alloc.c $(zsmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_alloc.c
+ATL_ztrsmR_IP.o : $(mySRCdir)/ATL_trsm_IP.c $(zsmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_IP.c
+ATL_ztrmmR_ST.o : $(mySRCdir)/ATL_trmm_ST.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_ST.c
+ATL_ziptrmmR.o : $(mySRCdir)/ATL_iptrmm.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrmm.c
+ATL_ztrmmR_alloc.o : $(mySRCdir)/ATL_trmm_alloc.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_alloc.c
+ATL_ztrsmR_LT_UN.o : $(mySRCdir)/ATL_trsmR_LT_UN.c $(zsmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmR_LT_UN.c
+ATL_ztrmmR_LT_UN.o : $(mySRCdir)/ATL_trmmR_LT_UN.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmR_LT_UN.c
+ATL_ztrsmR_LN_UT.o : $(mySRCdir)/ATL_trsmR_LN_UT.c $(zsmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmR_LN_UT.c
+ATL_ztrmmR_LN_UT.o : $(mySRCdir)/ATL_trmmR_LN_UT.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmR_LN_UT.c
+ATL_zsminfoR_LT.o : $(mySRCdir)/ATL_sminfo.c $(zsmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DTrans_=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_zutrmmR_UT.o : $(mySRCdir)/ATL_utrmmR.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_ztminfoR_UT.o : $(mySRCdir)/ATL_tminfo.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_zutrmmR_LT.o : $(mySRCdir)/ATL_utrmmR.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_ztminfoR_LT.o : $(mySRCdir)/ATL_tminfo.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_zsminfoR_LN.o : $(mySRCdir)/ATL_sminfo.c $(zsmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DNoTrans_=1 -DRight_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_zutrmmR_UN.o : $(mySRCdir)/ATL_utrmmR.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DNoTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_ztminfoR_UN.o : $(mySRCdir)/ATL_tminfo.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DNoTrans_=1 -DRight_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_zutrmmR_LN.o : $(mySRCdir)/ATL_utrmmR.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DNoTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_ztminfoR_LN.o : $(mySRCdir)/ATL_tminfo.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DNoTrans_=1 -DRight_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_zutrmmR_UC.o : $(mySRCdir)/ATL_utrmmR.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DRight_=1 -DUpper_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_ztminfoR_UC.o : $(mySRCdir)/ATL_tminfo.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DRight_=1 -DUpper_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_zutrmmR_LC.o : $(mySRCdir)/ATL_utrmmR.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DRight_=1 -DLower_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmR.c
+ATL_ztminfoR_LC.o : $(mySRCdir)/ATL_tminfo.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DRight_=1 -DLower_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_ziptrsmL.o : $(mySRCdir)/ATL_iptrsm.c $(zsmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrsm.c
+ATL_ztrsmL_alloc.o : $(mySRCdir)/ATL_trsm_alloc.c $(zsmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_alloc.c
+ATL_ztrsmL_IP.o : $(mySRCdir)/ATL_trsm_IP.c $(zsmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trsm_IP.c
+ATL_ztrmmL_ST.o : $(mySRCdir)/ATL_trmm_ST.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_ST.c
+ATL_ziptrmmL.o : $(mySRCdir)/ATL_iptrmm.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_iptrmm.c
+ATL_ztrmmL_alloc.o : $(mySRCdir)/ATL_trmm_alloc.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_trmm_alloc.c
+ATL_ztrsmL_LT_UN.o : $(mySRCdir)/ATL_trsmL_LT_UN.c $(zsmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmL_LT_UN.c
+ATL_ztrmmL_LT_UN.o : $(mySRCdir)/ATL_trmmL_LT_UN.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmL_LT_UN.c
+ATL_ztrsmL_LN_UT.o : $(mySRCdir)/ATL_trsmL_LN_UT.c $(zsmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trsmL_LN_UT.c
+ATL_ztrmmL_LN_UT.o : $(mySRCdir)/ATL_trmmL_LN_UT.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1  \
+           -c -o $@ $(mySRCdir)/ATL_trmmL_LN_UT.c
+ATL_zsminfoL_LT.o : $(mySRCdir)/ATL_sminfo.c $(zsmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DTrans_=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_zutrmmL_UT.o : $(mySRCdir)/ATL_utrmmL.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_ztminfoL_UT.o : $(mySRCdir)/ATL_tminfo.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_zutrmmL_LT.o : $(mySRCdir)/ATL_utrmmL.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_ztminfoL_LT.o : $(mySRCdir)/ATL_tminfo.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_zsminfoL_LN.o : $(mySRCdir)/ATL_sminfo.c $(zsmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DNoTrans_=1 -DLeft_=1 \
+           -c -o $@ $(mySRCdir)/ATL_sminfo.c
+ATL_zutrmmL_UN.o : $(mySRCdir)/ATL_utrmmL.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DNoTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_ztminfoL_UN.o : $(mySRCdir)/ATL_tminfo.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DNoTrans_=1 -DLeft_=1 -DUpper_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_zutrmmL_LN.o : $(mySRCdir)/ATL_utrmmL.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DNoTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_ztminfoL_LN.o : $(mySRCdir)/ATL_tminfo.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DNoTrans_=1 -DLeft_=1 -DLower_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_zutrmmL_UC.o : $(mySRCdir)/ATL_utrmmL.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DLeft_=1 -DUpper_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_ztminfoL_UC.o : $(mySRCdir)/ATL_tminfo.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DLeft_=1 -DUpper_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_zutrmmL_LC.o : $(mySRCdir)/ATL_utrmmL.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DLeft_=1 -DLower_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_utrmmL.c
+ATL_ztminfoL_LC.o : $(mySRCdir)/ATL_tminfo.c $(ztmdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -DLeft_=1 -DLower_=1 \
+	   -DTrans_=1 -DConj_=1 \
+           -c -o $@ $(mySRCdir)/ATL_tminfo.c
+ATL_ztrsm.o : $(mySRCdir)/ATL_trsm.c $(smdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -c -o $@ $(mySRCdir)/ATL_trsm.c
+ATL_zutrsmL_alloc.o : $(mySRCdir)/ATL_utrsmL_alloc.c $(smdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -c -o $@ $(mySRCdir)/ATL_utrsmL_alloc.c
+ATL_zutrsmR_alloc.o : $(mySRCdir)/ATL_utrsmR_alloc.c $(smdep)
+	$(ZKC) $(zKCFLAGS) -DDCPLX=1 -c -o $@ $(mySRCdir)/ATL_utrsmR_alloc.c

@@ -1,0 +1,281 @@
+
+topd = /home/whaley/git/math-atlas/AtlasBase
+ext  = /home/whaley/git/math-atlas/./TEST/xextract
+extF = $(ext) -langF -lnlen71 -Remtblank -llwarn2 -LAPACK1 $(incs)
+ext9 = $(ext) -langF -lnlen132 -RemtBlank $(incs)
+extC = $(ext) -langC -lnlen79 -Remtblank -llwarn2 $(incs)
+extM = $(ext) -langM -lnlen79 -llwarn2 $(incs)
+incs = -def topd /home/whaley/git/math-atlas/AtlasBase \
+       -def incd /home/whaley/git/math-atlas/AtlasBase/Clint \
+       -def ext  /home/whaley/git/math-atlas/./TEST/xextract \
+       -def BASEdir /home/whaley/git/math-atlas/AtlasBase/Antoine/ \
+       -def basd /home/whaley/git/math-atlas/AtlasBase/Clint
+
+default: all
+force_build:
+basd = /home/whaley/git/math-atlas/AtlasBase/Clint
+basdRCW = /home/whaley/git/math-atlas/AtlasBase/Clint
+basdAPP = /home/whaley/git/math-atlas/AtlasBase/Antoine
+basdSTU = /home/whaley/git/math-atlas/AtlasBase/Students
+incf = /home/whaley/git/math-atlas/AtlasBase/gen.inc
+
+basdr = $(basdRCW)/misc/ARCHDEF
+
+files = AMD64K10h64SSE3p32.tar.bz2 AMDRyzen64AVXMACp16.tar.bz2 \
+        AMDRyzen64AVXMACp64.tar.bz2 AMDRyzen64AVXMACp8.tar.bz2 \
+        ARM64thund64p48.tar.bz2 ARM64xgene164p8.tar.bz2 \
+        ARMa1532FPV3D32MACNONIEEEp4.tar.bz2 ARMa1532FPV3D32MACp4.tar.bz2 \
+        ARMa732FPV3D32MACp4.tar.bz2 ARMa932FPV3D16MACp2.tar.bz2 \
+        ARMa932FPV3D32MACp4.tar.bz2 BOZOL1.tar.bz2 Corei164SSE3p12.tar.bz2 \
+        Corei232AVXp4.tar.bz2 Corei264AVXp12.tar.bz2 Corei264AVXp16.tar.bz2 \
+        Corei264AVXp4.tar.bz2 Corei364AVXMACp4.tar.bz2 \
+        Corei364AVXMACp6.tar.bz2 Corei3EP64AVXMACp24.tar.bz2 \
+        Corei3EP64AVXMACp36.tar.bz2 Corei3EP64AVXMACp8.tar.bz2 \
+        Corei464AVXMACp4.tar.bz2 Corei4X64AVXMACp18.tar.bz2 \
+        Corei4X64AVXZp10.tar.bz2 Corei4X64AVXZp18.tar.bz2 CreateDef.sh \
+        CreateDirs.sh CreateTar.sh KillDirs.sh Makefile \
+        POWER864LEVSXp4.tar.bz2 POWER964LEVSXp8.tar.bz2 \
+        atlas_test1.1.3.tar.bz2 ifko.tar.bz2 lapack_test.tar.bz2 negcpfile.c \
+        negflt.c negmmfile.c negmvfile.c negr1file.c
+
+all : $(files) 
+
+force_build:
+$(topd)/../iFKO/src/extract.c : $(topd)/../extract.c
+	cp -f $(topd)/../extract.c $(topd)/../iFKO/src/.
+../../iFKO/base/hmake.base : $(topd)/../iFKO/base/hmake.base
+	cp $(topd)/../iFKO/base/hmake.base ../../iFKO/base/.
+do_fkoc : $(topd)/../iFKO/src/fkoc.c ../../iFKO/base/hmake.base
+$(topd)/../iFKO/src/fkoc.c : $(basdRCW)/atlconf.base
+	$(extC) -b $(basdRCW)/atlconf.base -o $(topd)/../iFKO/src/fkoc.c \
+                rout=fkoc
+$(topd)/../iFKO/ifko.tar.bz2 : force_build $(topd)/../iFKO/src/extract.c \
+   $(topd)/../iFKO/src/fkoc.c
+	cd $(topd)/../iFKO ; ./fkotar.sh
+ifko.tar.bz2 : $(topd)/../iFKO/ifko.tar.bz2
+	cp $(topd)/../iFKO/ifko.tar.bz2 .
+
+lapack_test.tar.bz2 : $(basdRCW)/misc/lapack_test.tar.bz2
+	cp $(basdRCW)/misc/lapack_test.tar.bz2 .
+atlas_test1.1.3.tar.bz2 :
+	- rm -f $(topd)../tmp.tar
+	cd $(topd)/.. ; tar -c -f tmp.tar AtlasTest
+	mv $(topd)/../tmp.tar atlas_test1.1.3.tar
+	bzip2 atlas_test1.1.3.tar
+#atlas_test1.1.3.tar.gz : $(basdRCW)/misc/atlas_test1.1.3.tar.gz
+#	cp $(basdRCW)/misc/atlas_test1.1.3.tar.gz .
+BOZOL1.tar.bz2 : $(basdr)/BOZOL1
+	- rm -f /tmp/BOZOL1.tar /tmp/BOZOL1.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/BOZOL1.tar BOZOL1
+	bzip2 /tmp/BOZOL1.tar
+	mv /tmp/BOZOL1.tar.bz2 ./.
+Corei364AVXMACp4.tar.bz2 : $(basdr)/Corei364AVXMACp4
+	- rm -f /tmp/Corei364AVXMACp4.tar /tmp/Corei364AVXMACp4.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/Corei364AVXMACp4.tar Corei364AVXMACp4
+	bzip2 /tmp/Corei364AVXMACp4.tar
+	mv /tmp/Corei364AVXMACp4.tar.bz2 ./.
+Corei364AVXMACp6.tar.bz2 : $(basdr)/Corei364AVXMACp6
+	- rm -f /tmp/Corei364AVXMACp6.tar /tmp/Corei364AVXMACp6.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/Corei364AVXMACp6.tar Corei364AVXMACp6
+	bzip2 /tmp/Corei364AVXMACp6.tar
+	mv /tmp/Corei364AVXMACp6.tar.bz2 ./.
+Corei3EP64AVXMACp36.tar.bz2 : $(basdr)/Corei3EP64AVXMACp36
+	- rm -f /tmp/Corei3EP64AVXMACp36.tar /tmp/Corei3EP64AVXMACp36.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/Corei3EP64AVXMACp36.tar Corei3EP64AVXMACp36
+	bzip2 /tmp/Corei3EP64AVXMACp36.tar
+	mv /tmp/Corei3EP64AVXMACp36.tar.bz2 ./.
+Corei3EP64AVXMACp24.tar.bz2 : $(basdr)/Corei3EP64AVXMACp24
+	- rm -f /tmp/Corei3EP64AVXMACp24.tar /tmp/Corei3EP64AVXMACp24.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/Corei3EP64AVXMACp24.tar Corei3EP64AVXMACp24
+	bzip2 /tmp/Corei3EP64AVXMACp24.tar
+	mv /tmp/Corei3EP64AVXMACp24.tar.bz2 ./.
+Corei3EP64AVXMACp8.tar.bz2 : $(basdr)/Corei3EP64AVXMACp8
+	- rm -f /tmp/Corei3EP64AVXMACp8.tar /tmp/Corei3EP64AVXMACp8.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/Corei3EP64AVXMACp8.tar Corei3EP64AVXMACp8
+	bzip2 /tmp/Corei3EP64AVXMACp8.tar
+	mv /tmp/Corei3EP64AVXMACp8.tar.bz2 ./.
+Corei264AVXp4.tar.bz2 : $(basdr)/Corei264AVXp4
+	- rm -f /tmp/Corei264AVXp4.tar /tmp/Corei264AVXp4.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/Corei264AVXp4.tar Corei264AVXp4
+	bzip2 /tmp/Corei264AVXp4.tar
+	mv /tmp/Corei264AVXp4.tar.bz2 ./.
+Corei264AVXp12.tar.bz2 : $(basdr)/Corei264AVXp12
+	- rm -f /tmp/Corei264AVXp12.tar /tmp/Corei264AVXp12.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/Corei264AVXp12.tar Corei264AVXp12
+	bzip2 /tmp/Corei264AVXp12.tar
+	mv /tmp/Corei264AVXp12.tar.bz2 ./.
+Corei264AVXp16.tar.bz2 : $(basdr)/Corei264AVXp16
+	- rm -f /tmp/Corei264AVXp16.tar /tmp/Corei264AVXp16.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/Corei264AVXp16.tar Corei264AVXp16
+	bzip2 /tmp/Corei264AVXp16.tar
+	mv /tmp/Corei264AVXp16.tar.bz2 ./.
+Corei164SSE3p12.tar.bz2 : $(basdr)/Corei164SSE3p12
+	- rm -f /tmp/Corei164SSE3p12.tar /tmp/Corei164SSE3p12.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/Corei164SSE3p12.tar Corei164SSE3p12
+	bzip2 /tmp/Corei164SSE3p12.tar
+	mv /tmp/Corei164SSE3p12.tar.bz2 ./.
+Corei464AVXMACp4.tar.bz2 : $(basdr)/Corei464AVXMACp4
+	- rm -f /tmp/Corei464AVXMACp4.tar /tmp/Corei464AVXMACp4.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/Corei464AVXMACp4.tar Corei464AVXMACp4
+	bzip2 /tmp/Corei464AVXMACp4.tar
+	mv /tmp/Corei464AVXMACp4.tar.bz2 ./.
+Corei232AVXp4.tar.bz2 : $(basdr)/Corei232AVXp4
+	- rm -f /tmp/Corei232AVXp4.tar /tmp/Corei232AVXp4.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/Corei232AVXp4.tar Corei232AVXp4
+	bzip2 /tmp/Corei232AVXp4.tar
+	mv /tmp/Corei232AVXp4.tar.bz2 ./.
+Corei4X64AVXZp10.tar.bz2 : $(basdr)/Corei4X64AVXZp10
+	- rm -f /tmp/Corei4X64AVXZp10.tar /tmp/Corei4X64AVXZp10.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/Corei4X64AVXZp10.tar Corei4X64AVXZp10
+	bzip2 /tmp/Corei4X64AVXZp10.tar
+	mv /tmp/Corei4X64AVXZp10.tar.bz2 ./.
+Corei4X64AVXZp18.tar.bz2 : $(basdr)/Corei4X64AVXZp18
+	- rm -f /tmp/Corei4X64AVXZp18.tar /tmp/Corei4X64AVXZp18.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/Corei4X64AVXZp18.tar Corei4X64AVXZp18
+	bzip2 /tmp/Corei4X64AVXZp18.tar
+	mv /tmp/Corei4X64AVXZp18.tar.bz2 ./.
+Corei4X64AVXMACp18.tar.bz2 : $(basdr)/Corei4X64AVXMACp18
+	- rm -f /tmp/Corei4X64AVXMACp18.tar /tmp/Corei4X64AVXMACp18.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/Corei4X64AVXMACp18.tar Corei4X64AVXMACp18
+	bzip2 /tmp/Corei4X64AVXMACp18.tar
+	mv /tmp/Corei4X64AVXMACp18.tar.bz2 ./.
+AMD64K10h64SSE3p32.tar.bz2 : $(basdr)/AMD64K10h64SSE3p32
+	- rm -f /tmp/AMD64K10h64SSE3p32.tar /tmp/AMD64K10h64SSE3p32.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/AMD64K10h64SSE3p32.tar AMD64K10h64SSE3p32
+	bzip2 /tmp/AMD64K10h64SSE3p32.tar
+	mv /tmp/AMD64K10h64SSE3p32.tar.bz2 ./.
+AMDRyzen64AVXMACp8.tar.bz2 : $(basdr)/AMDRyzen64AVXMACp8
+	- rm -f /tmp/AMDRyzen64AVXMACp8.tar /tmp/AMDRyzen64AVXMACp8.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/AMDRyzen64AVXMACp8.tar AMDRyzen64AVXMACp8
+	bzip2 /tmp/AMDRyzen64AVXMACp8.tar
+	mv /tmp/AMDRyzen64AVXMACp8.tar.bz2 ./.
+AMDRyzen64AVXMACp16.tar.bz2 : $(basdr)/AMDRyzen64AVXMACp16
+	- rm -f /tmp/AMDRyzen64AVXMACp16.tar /tmp/AMDRyzen64AVXMACp16.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/AMDRyzen64AVXMACp16.tar AMDRyzen64AVXMACp16
+	bzip2 /tmp/AMDRyzen64AVXMACp16.tar
+	mv /tmp/AMDRyzen64AVXMACp16.tar.bz2 ./.
+AMDRyzen64AVXMACp64.tar.bz2 : $(basdr)/AMDRyzen64AVXMACp64
+	- rm -f /tmp/AMDRyzen64AVXMACp64.tar /tmp/AMDRyzen64AVXMACp64.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/AMDRyzen64AVXMACp64.tar AMDRyzen64AVXMACp64
+	bzip2 /tmp/AMDRyzen64AVXMACp64.tar
+	mv /tmp/AMDRyzen64AVXMACp64.tar.bz2 ./.
+ARMa1532FPV3D32MACp4.tar.bz2 : $(basdr)/ARMa1532FPV3D32MACp4
+	- rm -f /tmp/ARMa1532FPV3D32MACp4.tar /tmp/ARMa1532FPV3D32MACp4.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/ARMa1532FPV3D32MACp4.tar ARMa1532FPV3D32MACp4
+	bzip2 /tmp/ARMa1532FPV3D32MACp4.tar
+	mv /tmp/ARMa1532FPV3D32MACp4.tar.bz2 ./.
+ARMa1532FPV3D32MACNONIEEEp4.tar.bz2 : $(basdr)/ARMa1532FPV3D32MACNONIEEEp4
+	- rm -f /tmp/ARMa1532FPV3D32MACNONIEEEp4.tar /tmp/ARMa1532FPV3D32MACNONIEEEp4.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/ARMa1532FPV3D32MACNONIEEEp4.tar ARMa1532FPV3D32MACNONIEEEp4
+	bzip2 /tmp/ARMa1532FPV3D32MACNONIEEEp4.tar
+	mv /tmp/ARMa1532FPV3D32MACNONIEEEp4.tar.bz2 ./.
+ARMa732FPV3D32MACp4.tar.bz2 : $(basdr)/ARMa732FPV3D32MACp4
+	- rm -f /tmp/ARMa732FPV3D32MACp4.tar /tmp/ARMa732FPV3D32MACp4.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/ARMa732FPV3D32MACp4.tar ARMa732FPV3D32MACp4
+	bzip2 /tmp/ARMa732FPV3D32MACp4.tar
+	mv /tmp/ARMa732FPV3D32MACp4.tar.bz2 ./.
+ARMa932FPV3D16MACp2.tar.bz2 : $(basdr)/ARMa932FPV3D16MACp2
+	- rm -f /tmp/ARMa932FPV3D16MACp2.tar /tmp/ARMa932FPV3D16MACp2.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/ARMa932FPV3D16MACp2.tar ARMa932FPV3D16MACp2
+	bzip2 /tmp/ARMa932FPV3D16MACp2.tar
+	mv /tmp/ARMa932FPV3D16MACp2.tar.bz2 ./.
+ARMa932FPV3D32MACp4.tar.bz2 : $(basdr)/ARMa932FPV3D32MACp4
+	- rm -f /tmp/ARMa932FPV3D32MACp4.tar /tmp/ARMa932FPV3D32MACp4.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/ARMa932FPV3D32MACp4.tar ARMa932FPV3D32MACp4
+	bzip2 /tmp/ARMa932FPV3D32MACp4.tar
+	mv /tmp/ARMa932FPV3D32MACp4.tar.bz2 ./.
+ARM64thund64p48.tar.bz2 : $(basdr)/ARM64thund64p48
+	- rm -f /tmp/ARM64thund64p48.tar /tmp/ARM64thund64p48.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/ARM64thund64p48.tar ARM64thund64p48
+	bzip2 /tmp/ARM64thund64p48.tar
+	mv /tmp/ARM64thund64p48.tar.bz2 ./.
+ARM64xgene164p8.tar.bz2 : $(basdr)/ARM64xgene164p8
+	- rm -f /tmp/ARM64xgene164p8.tar /tmp/ARM64xgene164p8.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/ARM64xgene164p8.tar ARM64xgene164p8
+	bzip2 /tmp/ARM64xgene164p8.tar
+	mv /tmp/ARM64xgene164p8.tar.bz2 ./.
+POWER864LEVSXp4.tar.bz2 : $(basdr)/POWER864LEVSXp4
+	- rm -f /tmp/POWER864LEVSXp4.tar /tmp/POWER864LEVSXp4.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/POWER864LEVSXp4.tar POWER864LEVSXp4
+	bzip2 /tmp/POWER864LEVSXp4.tar
+	mv /tmp/POWER864LEVSXp4.tar.bz2 ./.
+POWER964LEVSXp8.tar.bz2 : $(basdr)/POWER964LEVSXp8
+	- rm -f /tmp/POWER964LEVSXp8.tar /tmp/POWER964LEVSXp8.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' -c -f \
+           /tmp/POWER964LEVSXp8.tar POWER964LEVSXp8
+	bzip2 /tmp/POWER964LEVSXp8.tar
+	mv /tmp/POWER964LEVSXp8.tar.bz2 ./.
+
+HAMMER32SSE2.tar.bz2 : $(basdr)/HAMMER32SSE2
+	- rm -f /tmp/HAMMER32SSE2.tar /tmp/HAMMER32SSE2.tar.bz2
+	cd $(basdr) ; tar --dereference --exclude 'CVS' --exclude zAXPY_SUMM --exclude cAXPY_SUMM \
+           -c -f /tmp/HAMMER32SSE2.tar HAMMER32SSE2
+	bzip2 /tmp/HAMMER32SSE2.tar
+	mv /tmp/HAMMER32SSE2.tar.bz2 ./.
+$(basdr)/POWER432 : $(basdr)/POWER464
+	- rm $(basdr)/POWER432
+	ln -s  $(basdr)/POWER464 $(basdr)/POWER432
+$(basdr)/MIPSICE932 : $(basdr)/MIPSICE964
+	- rm $(basdr)/MIPSICE932
+	ln -s  $(basdr)/MIPSICE964 $(basdr)/MIPSICE932
+$(basdr)/USIII32 : $(basdr)/USIV32
+	- rm $(basdr)/USIII32
+	ln -s  $(basdr)/USIV32 $(basdr)/USIII32
+$(basdr)/USIV64 : $(basdr)/USIV32
+	- rm $(basdr)/USIV64
+	ln -s  $(basdr)/USIV32 $(basdr)/USIV64
+#$(basdr)/PPCG532AltiVec : $(basdr)/PPCG564AltiVec
+#	- rm /PPCG532AltiVec
+#	ln -s  $(basdr)/PPCG564AltiVec $(basdr)/PPCG532AltiVec
+$(basdr)/HAMMER32SSE2 : $(basdr)/HAMMER32SSE3
+	- /HAMMER32SSE2
+	ln -s  $(basdr)/HAMMER32SSE3 $(basdr)/HAMMER32SSE2
+Makefile : $(basdRCW)/atlas-def.base $(incf)
+	$(extM) -b $(basdRCW)/atlas-def.base -o Makefile rout=Makefile
+CreateTar.sh : $(basdRCW)/atlas-def.base $(incf)
+	$(extM) -b $(basdRCW)/atlas-def.base -o CreateTar.sh rout=CreateTar.sh
+CreateDirs.sh : $(basdRCW)/atlas-def.base $(incf)
+	$(extM) -b $(basdRCW)/atlas-def.base -o CreateDirs.sh rout=CreateDirs.sh
+KillDirs.sh : $(basdRCW)/atlas-def.base $(incf)
+	$(extM) -b $(basdRCW)/atlas-def.base -o KillDirs.sh rout=KillDirs.sh
+CreateDef.sh : $(basdRCW)/atlas-def.base $(incf)
+	$(extM) -b $(basdRCW)/atlas-def.base -o CreateDef.sh rout=CreateDef.sh
+negcpfile.c : $(basdRCW)/script.base $(incf)
+	$(extC) -b $(basdRCW)/script.base -o $@ rout=$*
+negmmfile.c : $(basdRCW)/script.base $(incf)
+	$(extC) -b $(basdRCW)/script.base -o $@ rout=$*
+negmvfile.c : $(basdRCW)/script.base $(incf)
+	$(extC) -b $(basdRCW)/script.base -o $@ rout=$*
+negr1file.c : $(basdRCW)/script.base $(incf)
+	$(extC) -b $(basdRCW)/script.base -o $@ rout=$*
+negflt.c : $(basdRCW)/script.base $(incf)
+	$(extC) -b $(basdRCW)/script.base -o $@ rout=$*
+Make.ext : $(topd)/make.base
+	$(extM) -b $(topd)/make.base -o Make.ext rout=atlas/config/archs

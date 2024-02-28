@@ -1,0 +1,474 @@
+include Make.inc
+mySRCdir = $(SRCdir)/tune/blas/trsm
+extC = $(BINdir)/xextract -langC
+ptmp=ATL_ptmp.c
+ctmp=ATL_smctmp
+kmaj=0
+vlen=1
+mvA=1
+mvB=1
+mvC=0
+outF=
+
+default: help
+
+force_build:
+$(SYSdir)/time.o:
+	cd $(SYSdir) ; $(MAKE) time.o
+$(BINdir)/xextract :
+	cd $(BINdir) ; $(MAKE) xextract
+$(AUXdir)/ATL_xerbla.o : $(SRCdir)/src/auxil/ATL_xerbla.c
+	cd $(AUXdir) ; make ATL_xerbla.o
+
+help :
+	@@echo "make gen_ntrsm_cpC ta=[T,N] mu=# nu=# rt=filename.h"
+	@@echo "make gen_ntrsm sd=[L,R] up=[L,U] ta=[N,T] U=# rt=filename.h"
+	@@echo "make genall_ntrsm sd=[L,R] up=[L,U] ta=[N,T] mu=# nu=# rt=fnam"
+	@@echo "make PREtrsmcase mmrout=FILE mu=X nu=X ku=X rb=X kb=X sd=[L,R] up=[U,L] ta=[T,N] tALL=[T,N] kmaj=#"
+
+parsedeps = $(INCSdir)/atlas_mmparse.h $(INCSdir)/atlas_mmtesttime.h \
+            $(INCSdir)/atlas_genparse.h $(INCSdir)/atlas_gentesttime.h \
+            $(INCSdir)/atlas_mmgen.h $(INCSdir)/atlas_cpparse.h \
+            $(INCSdir)/atlas_cptesttime.h
+
+xtrsmgen : $(mySRCdir)/trsmgen.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/trsmgen.c -lm
+xtrsmsrch : $(mySRCdir)/trsmsrch.c $(parsedeps)
+	$(XCC) $(XCCFLAGS) -o $@ $(mySRCdir)/trsmsrch.c -lm
+gen_ntrsm_cpC : $(BINdir)/xextract $(mySRCdir)/trsm-nano.base
+	$(extC) -b $(mySRCdir)/trsm-nano.base -o $(rt) rout=cpC -def ta $(ta) \
+           -def mu $(mu) -def nu $(nu)
+gen_ntrsm : $(BINdir)/xextract $(mySRCdir)/trsm-nano.base
+	$(extC) -b $(mySRCdir)/trsm-nano.base -o $(rt) rout=ATL_ntrsm$(sd) \
+           -def ta $(ta) -def up $(up) -def U $(U)
+genall_ntrsm:
+	- rm -f $(ptmp) $(rt)
+	touch $(rt)
+	$(MAKE) gen_ntrsm_cpC rt=$(ptmp) ta=$(ta) mu=$(mu) nu=$(nu)
+	cat $(ptmp) >> $(rt)
+	if [ "X$(ta)" = "XT" ] ; then \
+           echo "#define Trans_ 1" >> $(rt) ; \
+        fi
+	if [ "X$(sd)" = "XL" ] ; then \
+	   $(MAKE) gen_ntrsm rt=$(ptmp) sd=$(sd) ta=$(ta) up=$(up) U=$(mu) ; \
+        else \
+	   $(MAKE) gen_ntrsm rt=$(ptmp) sd=$(sd) ta=$(ta) up=$(up) U=$(nu) ; \
+        fi
+	cat $(ptmp) >> $(rt)
+
+strsmcase : force_build $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o
+	- rm -rf $(ctmp).c cpAtmp.c cpBtmp.c
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETAN1=1 -DATL_USERMM=AMM_bn \
+               -DSREAL=1 $(kmoves) -o sAMM_bn.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA0=1 -DATL_USERMM=AMM_b0 \
+               -DSREAL=1 $(kmoves) -o sAMM_b0.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA1=1 -DATL_USERMM=AMM_b1 \
+               -DSREAL=1 $(kmoves) -o sAMM_b1.o -c $(mmrout)
+	if [ "X$(tALL)" = "XT" ] ; then \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              cd ../gemm ; make gen_AN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_AT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           else \
+              cd ../gemm ; make gen_AT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_AT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           fi ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   make genall_ntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(nu) nu=$(mu) \
+              rt=$(ctmp).c ; \
+           echo "#define USE_TRANS 1" >> $(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DATL_NONANO=1 -DSREAL=1 -o $(ctmp).o \
+              -DUSE_TRANS=1 -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -o susmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_sutrsm$(sd)_$(up)$(ta)$(nu)x$(mu) \
+              -DSREAL=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xsusmtime_pt susmtime.o \
+          $(ctmp).o sAMM_b0.o sAMM_b1.o sAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+          $(ATLRUN) $(MMTdir)/../trsm xsusmtime_pt -p $(NPROC) $(TIDLIST) \
+             -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(nu) -un $(mu) \
+             -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+        else \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              cd ../gemm ; make gen_AN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_AT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           else \
+              cd ../gemm ; make gen_AT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_AT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           fi ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSREAL=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   $(MAKE) genall_ntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(mu) nu=$(nu) \
+              rt=$(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DATL_NONANO=1 -DSREAL=1 -o $(ctmp).o \
+              -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -o susmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_sutrsm$(sd)_$(up)$(ta)$(mu)x$(nu) \
+              -DSREAL=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xsusmtime_pt susmtime.o \
+          $(ctmp).o sAMM_b0.o sAMM_b1.o sAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+          $(ATLRUN) $(MMTdir)/../trsm xsusmtime_pt -p $(NPROC) $(TIDLIST) \
+             -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+             -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+        fi
+dtrsmcase : force_build $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o
+	- rm -rf $(ctmp).c cpAtmp.c cpBtmp.c
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETAN1=1 -DATL_USERMM=AMM_bn \
+               -DDREAL=1 $(kmoves) -o dAMM_bn.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA0=1 -DATL_USERMM=AMM_b0 \
+               -DDREAL=1 $(kmoves) -o dAMM_b0.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA1=1 -DATL_USERMM=AMM_b1 \
+               -DDREAL=1 $(kmoves) -o dAMM_b1.o -c $(mmrout)
+	if [ "X$(tALL)" = "XT" ] ; then \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              cd ../gemm ; make gen_AN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_AT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           else \
+              cd ../gemm ; make gen_AT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_AT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           fi ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   make genall_ntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(nu) nu=$(mu) \
+              rt=$(ctmp).c ; \
+           echo "#define USE_TRANS 1" >> $(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DATL_NONANO=1 -DDREAL=1 -o $(ctmp).o \
+              -DUSE_TRANS=1 -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -o dusmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_dutrsm$(sd)_$(up)$(ta)$(nu)x$(mu) \
+              -DDREAL=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xdusmtime_pt dusmtime.o \
+          $(ctmp).o dAMM_b0.o dAMM_b1.o dAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+          $(ATLRUN) $(MMTdir)/../trsm xdusmtime_pt -p $(NPROC) $(TIDLIST) \
+             -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(nu) -un $(mu) \
+             -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+        else \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              cd ../gemm ; make gen_AN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_AT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           else \
+              cd ../gemm ; make gen_AT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_AN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_AT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           fi ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDREAL=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   $(MAKE) genall_ntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(mu) nu=$(nu) \
+              rt=$(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DATL_NONANO=1 -DDREAL=1 -o $(ctmp).o \
+              -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -o dusmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_dutrsm$(sd)_$(up)$(ta)$(mu)x$(nu) \
+              -DDREAL=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xdusmtime_pt dusmtime.o \
+          $(ctmp).o dAMM_b0.o dAMM_b1.o dAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+          $(ATLRUN) $(MMTdir)/../trsm xdusmtime_pt -p $(NPROC) $(TIDLIST) \
+             -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+             -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+        fi
+ctrsmcase : force_build $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o
+	- rm -rf $(ctmp).c cpAtmp.c cpBtmp.c
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETAN1=1 -DATL_USERMM=AMM_bn \
+               -DSREAL=1 $(kmoves) -o cAMM_bn.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA0=1 -DATL_USERMM=AMM_b0 \
+               -DSREAL=1 $(kmoves) -o cAMM_b0.o -c $(mmrout)
+	$(SMC) $(CDEFS) $(SMCFLAGS) -DBETA1=1 -DATL_USERMM=AMM_b1 \
+               -DSREAL=1 $(kmoves) -o cAMM_b1.o -c $(mmrout)
+	if [ "X$(tALL)" = "XT" ] ; then \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              cd ../gemm ; make gen_cAN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_cAT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           else \
+              cd ../gemm ; make gen_cAT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_cAT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           fi ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   make genall_ntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(nu) nu=$(mu) \
+              rt=$(ctmp).c ; \
+           echo "#define USE_TRANS 1" >> $(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DATL_NONANO=1 -DSCPLX=1 -o $(ctmp).o \
+              -DUSE_TRANS=1 -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -o cusmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_cutrsm$(sd)_$(up)$(ta)$(nu)x$(mu) \
+              -DSCPLX=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xcusmtime_pt cusmtime.o \
+          $(ctmp).o cAMM_b0.o cAMM_b1.o cAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+          $(ATLRUN) $(MMTdir)/../trsm xcusmtime_pt -p $(NPROC) $(TIDLIST) \
+             -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(nu) -un $(mu) \
+             -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+        else \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              cd ../gemm ; make gen_cAN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_cAT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           else \
+              cd ../gemm ; make gen_cAT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_cAT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           fi ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DSCPLX=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   $(MAKE) genall_ntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(mu) nu=$(nu) \
+              rt=$(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -DATL_NONANO=1 -DSCPLX=1 -o $(ctmp).o \
+              -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(SKC) $(CDEFS) $(SKCFLAGS) -o cusmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_cutrsm$(sd)_$(up)$(ta)$(mu)x$(nu) \
+              -DSCPLX=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xcusmtime_pt cusmtime.o \
+          $(ctmp).o cAMM_b0.o cAMM_b1.o cAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+          $(ATLRUN) $(MMTdir)/../trsm xcusmtime_pt -p $(NPROC) $(TIDLIST) \
+             -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+             -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+        fi
+ztrsmcase : force_build $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o
+	- rm -rf $(ctmp).c cpAtmp.c cpBtmp.c
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETAN1=1 -DATL_USERMM=AMM_bn \
+               -DDREAL=1 $(kmoves) -o zAMM_bn.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA0=1 -DATL_USERMM=AMM_b0 \
+               -DDREAL=1 $(kmoves) -o zAMM_b0.o -c $(mmrout)
+	$(DMC) $(CDEFS) $(DMCFLAGS) -DBETA1=1 -DATL_USERMM=AMM_b1 \
+               -DDREAL=1 $(kmoves) -o zAMM_b1.o -c $(mmrout)
+	if [ "X$(tALL)" = "XT" ] ; then \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              cd ../gemm ; make gen_cAN2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_cAT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           else \
+              cd ../gemm ; make gen_cAT2blk UR=$(mu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAN2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_cAT2blk UR=$(nu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           fi ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   make genall_ntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(nu) nu=$(mu) \
+              rt=$(ctmp).c ; \
+           echo "#define USE_TRANS 1" >> $(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DATL_NONANO=1 -DDCPLX=1 -o $(ctmp).o \
+              -DUSE_TRANS=1 -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -o zusmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_zutrsm$(sd)_$(up)$(ta)$(nu)x$(mu) \
+              -DDCPLX=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xzusmtime_pt zusmtime.o \
+          $(ctmp).o zAMM_b0.o zAMM_b1.o zAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+          $(ATLRUN) $(MMTdir)/../trsm xzusmtime_pt -p $(NPROC) $(TIDLIST) \
+             -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(nu) -un $(mu) \
+             -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+        else \
+	   if [ "X$(sd)" = "XL" ] ; then \
+              cd ../gemm ; make gen_cAN2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_cAT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           else \
+              cd ../gemm ; make gen_cAT2blk UR=$(nu) kmaj=$(kmaj) alpha=1 \
+                 rt=../trsm/cpBtmp.c ; \
+	      if [ "X$(ta)" = "XT" ] ; then \
+                 make gen_cAN2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; \
+              else \
+                 make gen_cAT2blk UR=$(mu) kmaj=$(kmaj) alpha=-1 \
+                    rt=../trsm/cpAtmp.c ; cd ../trsm ; \
+              fi ; \
+           fi ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -c cpBtmp.c \
+              -DATL_USERCPMM=B2BLK ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DDCPLX=1 -c cpAtmp.c \
+              -DATL_USERCPMM=A2BLK ; \
+	   $(MAKE) genall_ntrsm sd=$(sd) up=$(up) ta=$(ta) mu=$(mu) nu=$(nu) \
+              rt=$(ctmp).c ; \
+	   if [ "X$(up)" = "XU" ] ; then \
+              echo "#define Upper_ 1" >> $(ctmp).c ; \
+           fi ; \
+	   cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_*$(up)$(ta)*.c >> \
+               $(ctmp).c ; \
+           cat $(SRCdir)/src/blas/ulevel3/ATL_utrsm$(sd)_alloc.c >>$(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -DATL_NONANO=1 -DDCPLX=1 -o $(ctmp).o \
+              -DSIDE_$(sd)_=1 -DTRANSA_$(ta)_=1 -c $(ctmp).c ; \
+	   $(DKC) $(CDEFS) $(DKCFLAGS) -o zusmtime.o -c \
+              $(SRCdir)/tune/blas/gemm/mmtime_pt.c \
+              -DATL_UTRSM=ATL_zutrsm$(sd)_$(up)$(ta)$(mu)x$(nu) \
+              -DDCPLX=1 -DSIDE_$(sd)_=1 -DUPLO_$(up)_=1 -DTRANSA_$(ta)_=1 \
+              -DTIME_AMM_SM=1 -DTIME_TRMVK=1 ; \
+	$(CLINKER) $(CLINKFLAGS) -o xzusmtime_pt zusmtime.o \
+          $(ctmp).o zAMM_b0.o zAMM_b1.o zAMM_bn.o \
+          cpBtmp.o cpAtmp.o $(AUXdir)/ATL_xerbla.o $(SYSdir)/time.o $(LIBS) ; \
+          $(ATLRUN) $(MMTdir)/../trsm xzusmtime_pt -p $(NPROC) $(TIDLIST) \
+             -m $(kb) -n $(rb) -k $(kb) $(FMFS) -um $(mu) -un $(nu) \
+             -V $(vlen) -Ma $(mvA) -Mb $(mvB) -Mc $(mvC) $(outF) ; \
+        fi
