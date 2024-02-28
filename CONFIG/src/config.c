@@ -10,7 +10,7 @@ char *GetStrProbe(int verb, char *targarg, char *prb, char *id)
    char *ln, *res;
    int i;
 
-   i = strlen(targarg) + strlen(prb) + strlen(id) + 48;
+   i = strlen(targarg) + strlen(prb) + strlen(id) + 50;
    ln = malloc(i*sizeof(char));
    assert(ln);
    sprintf(ln, "make IRun_%s args=\"-v %d %s\" | grep -F '%s='",
@@ -44,7 +44,7 @@ int GetIntProbe(int verb, char *targarg, char *prb, char *id, int N)
    char *ln, *res;
    int iret=0, i;
 
-   i = strlen(targarg) + strlen(prb) + strlen(id) + 48;
+   i = strlen(targarg) + strlen(prb) + strlen(id) + 50;
    ln = malloc(i*sizeof(char));
    assert(ln);
    sprintf(ln, "make IRun_%s args=\"-v %d %s\" | grep -F '%s='",
@@ -75,7 +75,7 @@ int GetIntProbeSure(int verb, char *targarg, char *prb, char *id,
    char *ln, *res;
    int iret=0, ierr, i;
 
-   i = strlen(targarg) + strlen(prb) + strlen(id) + 48;
+   i = strlen(targarg) + strlen(prb) + strlen(id) + 50;
    ln = malloc(i*sizeof(char));
    assert(ln);
    sprintf(ln, "make IRun_%s args=\"-v %d %s\" | grep -F '%s='",

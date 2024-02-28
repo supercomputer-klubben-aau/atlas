@@ -700,7 +700,7 @@ char *NameWithoutPath(char *file)
 
 int GetIntVers(char *str, int *nskip)
 {
-   char ln[64];
+   char ln[128];
    int i, j;
 
    *nskip = 0;
@@ -870,7 +870,7 @@ int CompIsMinGW(char *comp)
    {
       char *cmnd, *res;
       int i;
-      i = strlen(comp) + 24;
+      i = strlen(comp) + 26;
       cmnd = malloc(sizeof(char)*i);
       assert(cmnd);
       sprintf(cmnd, "%s -v 2>&1 | grep -F mingw", comp);
@@ -899,7 +899,7 @@ int CompIsAppleGcc(char *comp)
    if (CompIsGcc(comp))
    {
       int i;
-      i = strlen(comp) + 24;
+      i = strlen(comp) + 26;
       cmnd = malloc(sizeof(char)*i);
       assert(cmnd);
       sprintf(cmnd, "%s -v 2>&1 | grep -F Apple", comp);
