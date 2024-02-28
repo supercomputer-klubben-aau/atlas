@@ -31,10 +31,10 @@ int RunAffProbe(int iaff, int verb, char *targ, int iproc)
    if (targ)
    {
       i += strlen(targ);
-      frm = "make IRun_%s atlrun=atlas_runX targ=%s LIBS='%s' args='%d' 2> /dev/null | grep -F SUCCESS";
+      frm = "make IRun_%s atlrun=atlas_runX targ=%s LIBS='%s' args='%d' | grep -F SUCCESS";
    }
    else
-      frm = "make IRun_%s LIBS='%s' args='%d' 2> /dev/null | grep -F SUCCESS";
+      frm = "make IRun_%s LIBS='%s' args='%d' | grep -F SUCCESS";
    i += strlen(frm) + strlen(AFFS[iaff]) + strlen(lib) + 11;
    cmnd = malloc(sizeof(char)*i);
    assert(cmnd);
