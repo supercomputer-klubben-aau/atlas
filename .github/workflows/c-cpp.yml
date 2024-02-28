@@ -16,7 +16,7 @@ jobs:
 
     # Run configure with high verbosity and valgrind on xconfig
     - name: configure
-    - run: |
+      run: |
         mkdir build
         cd build
         ../configure --cripple-atlas-performance -v 2 --valgrind
