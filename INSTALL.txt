@@ -194,7 +194,7 @@ with something like:
 ===========================================================================
 DONE BUILDING TESTERS, RUNNING:
 SCOPING FOR FAILURES IN BIN TESTS:
-fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
+grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
         bin/Linux_PIIISSE1/sanity.out
 8 cases: 8 passed, 0 skipped, 0 failed
 4 cases: 4 passed, 0 skipped, 0 failed
@@ -206,15 +206,15 @@ fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
 4 cases: 4 passed, 0 skipped, 0 failed
 DONE
 SCOPING FOR FAILURES IN CBLAS TESTS:
-fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
+grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
         interfaces/blas/C/testing/Linux_PIIISSE1/sanity.out | \
-                fgrep -v PASSED
+                grep -F -v PASSED
 make[1]: [sanity_test] Error 1 (ignored)
 DONE
 SCOPING FOR FAILURES IN F77BLAS TESTS:
-fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
+grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
         interfaces/blas/F77/testing/Linux_PIIISSE1/sanity.out | \
-                fgrep -v PASSED
+                grep -F -v PASSED
 make[1]: [sanity_test] Error 1 (ignored)
 DONE
 make[1]: Leaving directory `/home/rwhaley/TEST/TEST/ATLAS3.3.15'

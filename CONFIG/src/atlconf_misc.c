@@ -873,7 +873,7 @@ int CompIsMinGW(char *comp)
       i = strlen(comp) + 24;
       cmnd = malloc(sizeof(char)*i);
       assert(cmnd);
-      sprintf(cmnd, "%s -v 2>&1 | fgrep mingw", comp);
+      sprintf(cmnd, "%s -v 2>&1 | grep -F mingw", comp);
       res = atlsys_1L(NULL, cmnd, 0, 0);
       free(cmnd);
       if (res)
@@ -902,7 +902,7 @@ int CompIsAppleGcc(char *comp)
       i = strlen(comp) + 24;
       cmnd = malloc(sizeof(char)*i);
       assert(cmnd);
-      sprintf(cmnd, "%s -v 2>&1 | fgrep Apple", comp);
+      sprintf(cmnd, "%s -v 2>&1 | grep -F Apple", comp);
       res = atlsys_1L(NULL, cmnd, 0, 0);
       free(cmnd);
       if (res)

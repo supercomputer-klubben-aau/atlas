@@ -123,7 +123,7 @@ int ProbeOneInt(enum OSTYPE OS0, enum ASMDIA asmd0, char *targ0,
  */
    if (asmd == gas_x86_32 || asmd == gas_x86_64 || asmd == gas_wow64)
    {
-      frm = "make IRunArchInfo_x86 MYFLAGS=\"-DATL_OS_%s -DATL_%s\" args=\"%s\" %s | fgrep '%s'";
+      frm = "make IRunArchInfo_x86 MYFLAGS=\"-DATL_OS_%s -DATL_%s\" args=\"%s\" %s | grep -F '%s'";
       i = strlen(frm) + strlen(osnam[OS]) + strlen(ASMNAM[asmd]) + strlen(flag)
           + strlen(targ) + strlen(find) + 1;
       cmnd = malloc(sizeof(char)*i);
@@ -143,7 +143,7 @@ int ProbeOneInt(enum OSTYPE OS0, enum ASMDIA asmd0, char *targ0,
  */
    if (!iret)
    {
-      frm = "make IRunArchInfo_%s MYFLAGS=\"-DATL_OS_%s -DATL_%s\" args=\"%s\" %s | fgrep '%s'";
+      frm = "make IRunArchInfo_%s MYFLAGS=\"-DATL_OS_%s -DATL_%s\" args=\"%s\" %s | grep -F '%s'";
       i = 1 + strlen(frm) + strlen(osname) + 3+strlen(osnam[OS]) +
           strlen(ASMNAM[asmd]) + strlen(flag) + strlen(targ) + strlen(find);
       cmnd = malloc(sizeof(char)*i);
@@ -170,7 +170,7 @@ int ConfirmPtrbits(enum OSTYPE OS0, enum ASMDIA asmd0, char *targ0,
 {
    char osname[128];
    char *cmnd, *res, *targ;
-   char *frm="make IRunArchInfo_%s MYFLAGS=\"-m64 -DATL_OS_%s -DATL_%s\" args=\"%s\" %s | fgrep '%s'";
+   char *frm="make IRunArchInfo_%s MYFLAGS=\"-m64 -DATL_OS_%s -DATL_%s\" args=\"%s\" %s | grep -F '%s'";
    enum OSTYPE OS;
    enum ASMDIA asmd;
    int i, iret=0;

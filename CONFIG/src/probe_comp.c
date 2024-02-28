@@ -547,14 +547,14 @@ int CompTest(int verb, char *targ, int icomp, char *comp, char *flag)
       trg[0] = '\0';
    }
    if (icomp == F77_)
-      frm = "make IRunF77Comp F77='%s' F77FLAGS='%s' %s | fgrep SUCCESS";
+      frm = "make IRunF77Comp F77='%s' F77FLAGS='%s' %s | grep -F SUCCESS";
    else if (icomp == XCC_)
    {
       targ = NULL;
-      frm = "make IRunXCComp CC='%s' CCFLAGS='%s' %s | fgrep SUCCESS";
+      frm = "make IRunXCComp CC='%s' CCFLAGS='%s' %s | grep -F SUCCESS";
    }
    else
-      frm = "make IRunCComp CC='%s' CCFLAGS='%s' %s | fgrep SUCCESS";
+      frm = "make IRunCComp CC='%s' CCFLAGS='%s' %s | grep -F SUCCESS";
    i = 1 + strlen(frm) + strlen(comp) + strlen(flag) + strlen(trg);
    cmnd = malloc(sizeof(char)*i);
    assert(cmnd);
@@ -1689,7 +1689,7 @@ void TestComps(enum OSTYPE OS, enum MACHTYPE arch, int verb, char *targ,
       {
          if (strcmp(comps[i], comps[ICC_])) /* only check if different */
          {
-            char *frm = "make IRunC2C CC='%s' CCFLAGS='%s' CC1='%s' CC1FLAGS='%s' | fgrep SUCCESS";
+            char *frm = "make IRunC2C CC='%s' CCFLAGS='%s' CC1='%s' CC1FLAGS='%s' | grep -F SUCCESS";
             char *cmnd, *res;
             int j;
 
@@ -1732,9 +1732,9 @@ void TestComps(enum OSTYPE OS, enum MACHTYPE arch, int verb, char *targ,
       int j;
       j = (strstr(comps[F77_], "mgwgfortran") != NULL);
       if (j)
-         frm = "make IRun_f2c args=\"%s -C ic '%s' -F ic '%s' -C if '%s' -F if '%s -static'\" | fgrep 'F2C=('";
+         frm = "make IRun_f2c args=\"%s -C ic '%s' -F ic '%s' -C if '%s' -F if '%s -static'\" | grep -F 'F2C=('";
       else
-         frm = "make IRun_f2c args=\"%s -C ic '%s' -F ic '%s' -C if '%s' -F if '%s'\" | fgrep 'F2C=('";
+         frm = "make IRun_f2c args=\"%s -C ic '%s' -F ic '%s' -C if '%s' -F if '%s'\" | grep -F 'F2C=('";
 
       j = strlen(frm) + strlen(targarg) + strlen(comps[ICC_]) +
           strlen(comps[ICC_+NCOMP]) + strlen(comps[F77_]) +

@@ -63,7 +63,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
    uint part;
    char *res;
    *IMPL = *ARCH = *VAR = *REV = part = -1;
-   res = atlsys_1L(NULL, "fgrep 'CPU part' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU part' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -74,7 +74,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
             part = i;
       free(res);
    }
-   res = atlsys_1L(NULL, "fgrep 'CPU variant' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU variant' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -85,7 +85,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
             *VAR = i;
       free(res);
    }
-   res = atlsys_1L(NULL, "fgrep 'CPU implement' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU implement' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -97,7 +97,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
       free(res);
    }
 
-   res = atlsys_1L(NULL, "fgrep 'CPU architect' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU architect' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -108,7 +108,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
             *ARCH = i;
       free(res);
    }
-   res = atlsys_1L(NULL, "fgrep 'CPU revision' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU revision' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -132,7 +132,7 @@ enum MACHTYPE ProbeArch()
    switch(fam)
    {
    case AFSPARC:
-      res = atlsys_1L(NULL, "/usr/sbin/psrinfo -pv | fgrep UltraSPARC", 0, 0);
+      res = atlsys_1L(NULL, "/usr/sbin/psrinfo -pv | grep -F UltraSPARC", 0, 0);
       if (res)
       {
          if (strstr(res, "UltraSPARC-IV"))
@@ -157,18 +157,18 @@ enum MACHTYPE ProbeArch()
  *    I assume most USIV will have the newer SunOS/psrinfo above, so declare
  *    anything using this to be USIII, to minimize user confusion.
  */
-      else if (res=atlsys_1L(NULL, "/usr/sbin/psrinfo -v | fgrep sparcv9", 0,0))
+      else if (res=atlsys_1L(NULL, "/usr/sbin/psrinfo -v | grep -F sparcv9", 0,0))
       {
          free(res);
          mach = SunUSX;
-         res = atlsys_1L(NULL,  "/usr/sbin/psrinfo -v | fgrep MHz", 0, 0);
+         res = atlsys_1L(NULL,  "/usr/sbin/psrinfo -v | grep -F MHz", 0, 0);
          if (res)
          {
             i = GetIntBeforeWord("MHz", res);
             if (i != BADINT && i > 700) mach = SunUSIII;
             free(res);
          }
-         else if (res=atlsys_1L(NULL, "/usr/sbin/psrinfo -v | fgrep GHz", 0, 0))
+         else if (res=atlsys_1L(NULL, "/usr/sbin/psrinfo -v | grep -F GHz", 0, 0))
          {
             mach = SunUSIII;
             free(res);
@@ -183,13 +183,13 @@ int ProbeNCPU()
    int ncpu = 0;
    char *res;
 
-   res = atlsys_1L(NULL, "uname -X | fgrep NumCPU", 0, 0);
+   res = atlsys_1L(NULL, "uname -X | grep -F NumCPU", 0, 0);
    if (res)
    {
       ncpu = GetFirstInt(res);
       free(res);
    }
-   else if ((res=atlsys_1L(NULL, "/bin/uname -X | fgrep NumCPU", 0, 0)))
+   else if ((res=atlsys_1L(NULL, "/bin/uname -X | grep -F NumCPU", 0, 0)))
    {
       ncpu = GetFirstInt(res);
       free(res);
@@ -248,7 +248,7 @@ int ProbeMhz()
 {
    int mhz=0;
    char *res;
-   res = atlsys_1L(NULL, "/usr/sbin/psrinfo -v | fgrep MHz", 0, 0);
+   res = atlsys_1L(NULL, "/usr/sbin/psrinfo -v | grep -F MHz", 0, 0);
    if (res)
    {
       mhz = GetIntBeforeWord("MHz", res);
@@ -257,7 +257,7 @@ int ProbeMhz()
    }
    if (!mhz)
    {
-      res = atlsys_1L(NULL, "/usr/sbin/psrinfo -v | fgrep GHz", 0, 0);
+      res = atlsys_1L(NULL, "/usr/sbin/psrinfo -v | grep -F GHz", 0, 0);
       if (res)
       {
          mhz = GetIntBeforeWord("GHz", res);

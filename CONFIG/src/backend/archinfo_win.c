@@ -118,7 +118,7 @@ int ProbeMhz()
 {
    int mhz=0;
    char *res;
-   res = atlsys_1L(NULL, "fgrep 'cpu MHz' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'cpu MHz' /proc/cpuinfo", 0, 0);
    if (res)
    {
       mhz = GetFirstDouble(res) + 0.5;
@@ -126,7 +126,7 @@ int ProbeMhz()
    }
    if (!mhz)
    {
-      res = atlsys_1L(NULL, "cat /proc/cpuinfo | fgrep clock | fgrep MHz",0,0);
+      res = atlsys_1L(NULL, "cat /proc/cpuinfo | grep -F clock | grep -F MHz",0,0);
       if (res)
       {
          mhz = GetLastLongWithRound(res);
@@ -138,7 +138,7 @@ int ProbeMhz()
  */
    if (!mhz)
    {
-      res = atlsys_1L(NULL, "fgrep 'ClkTck' /proc/cpuinfo", 0, 0);
+      res = atlsys_1L(NULL, "grep -F 'ClkTck' /proc/cpuinfo", 0, 0);
       if (res)
       {
          mhz = GetLastHex(res) / 1000000;
@@ -199,7 +199,7 @@ int ProbeMhz()
  */
    if (!mhz)
    {
-      res = atlsys_1L(NULL, "cat /proc/cpuinfo | fgrep bogomips",0,0);
+      res = atlsys_1L(NULL, "cat /proc/cpuinfo | grep -F bogomips",0,0);
       if (res)
       {
          double result = GetFirstDouble(res);

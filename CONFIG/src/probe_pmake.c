@@ -7,7 +7,7 @@ void GetPmake(int verb, enum OSTYPE OS, int ncpu, char *pmake)
    if (!OSIsWin(OS))
    { /* using gnu make */
       char *res;
-      res = atlsys_1L(NULL, "make DoNothing --version | fgrep GNU", verb, 1);
+      res = atlsys_1L(NULL, "make DoNothing --version | grep -F GNU", verb, 1);
       if (res)
       {
          free(res);

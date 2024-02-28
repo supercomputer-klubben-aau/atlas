@@ -63,7 +63,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
    uint part;
    char *res;
    *IMPL = *ARCH = *VAR = *REV = part = -1;
-   res = atlsys_1L(NULL, "fgrep 'CPU part' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU part' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -74,7 +74,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
             part = i;
       free(res);
    }
-   res = atlsys_1L(NULL, "fgrep 'CPU variant' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU variant' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -85,7 +85,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
             *VAR = i;
       free(res);
    }
-   res = atlsys_1L(NULL, "fgrep 'CPU implement' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU implement' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -97,7 +97,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
       free(res);
    }
 
-   res = atlsys_1L(NULL, "fgrep 'CPU architect' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU architect' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -108,7 +108,7 @@ uint getArmInfo(uint *IMPL, uint *ARCH, uint *VAR, uint *REV)
             *ARCH = i;
       free(res);
    }
-   res = atlsys_1L(NULL, "fgrep 'CPU revision' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'CPU revision' /proc/cpuinfo", 0, 0);
    if (res)
    {
       char *sp;
@@ -132,7 +132,7 @@ enum MACHTYPE ProbeArch()
    switch(fam)
    {
    case AFPPC:
-      res = atlsys_1L(NULL, "cat /proc/cpuinfo | fgrep cpu", 0, 0);
+      res = atlsys_1L(NULL, "cat /proc/cpuinfo | grep -F cpu", 0, 0);
       if (res)
       {
 #if 0
@@ -158,7 +158,7 @@ enum MACHTYPE ProbeArch()
       }
       break;
    case AFMIPS:
-      res = atlsys_1L(NULL, "fgrep 'cpu model' /proc/cpuinfo", 0, 0);
+      res = atlsys_1L(NULL, "grep -F 'cpu model' /proc/cpuinfo", 0, 0);
       if (res)
       {
          if (res[0] != '\0')
@@ -177,15 +177,15 @@ enum MACHTYPE ProbeArch()
       }
       break;
    case AFARM:
-      res = atlsys_1L(NULL, "fgrep 'Processor' /proc/cpuinfo", 0, 0);
+      res = atlsys_1L(NULL, "grep -F 'Processor' /proc/cpuinfo", 0, 0);
       if (!res)
-         res = atlsys_1L(NULL, "fgrep cpu /proc/cpuinfo", 0, 0);
+         res = atlsys_1L(NULL, "grep -F cpu /proc/cpuinfo", 0, 0);
       if (res)
       {
          if (strstr(res, "ARMv7") || strstr(res,"v7l"))
          {
             free(res);
-            res = atlsys_1L(NULL, "fgrep 'CPU part' /proc/cpuinfo", 0, 0);
+            res = atlsys_1L(NULL, "grep -F 'CPU part' /proc/cpuinfo", 0, 0);
             if (res)
             {
                char *sp;
@@ -219,14 +219,14 @@ enum MACHTYPE ProbeArch()
          else if (strstr(res, "AArch64") || strstr(res, "aarch64"))
          {
             free(res);
-            res = atlsys_1L(NULL, "fgrep 'Hardware' /proc/cpuinfo", 0, 0);
+            res = atlsys_1L(NULL, "grep -F 'Hardware' /proc/cpuinfo", 0, 0);
             if (res && strstr(res, "X-Gene "))
                mach = ARM64xg;
             else
             {
                if(res)
                   free(res);
-               res = atlsys_1L(NULL, "fgrep 'CPU part' /proc/cpuinfo", 0, 0);
+               res = atlsys_1L(NULL, "grep -F 'CPU part' /proc/cpuinfo", 0, 0);
                if (res)
                {
                   char *sp;
@@ -283,14 +283,14 @@ enum MACHTYPE ProbeArch()
       }
       break;
    case AFIA64:
-      res = atlsys_1L(NULL, "fgrep 'Itanium' /proc/cpuinfo", 0, 0);
+      res = atlsys_1L(NULL, "grep -F 'Itanium' /proc/cpuinfo", 0, 0);
       if (res && res[0] == '\0')
       {
          free(res);
          res = NULL;
       }
       if (!res)
-         res = atlsys_1L(NULL, "fgrep \"model name\" /proc/cpuinfo", 0, 0);
+         res = atlsys_1L(NULL, "grep -F \"model name\" /proc/cpuinfo", 0, 0);
       if (res)
       {
          if (res[0] != '\0')
@@ -303,14 +303,14 @@ enum MACHTYPE ProbeArch()
       }
       break;
    case AFX86:
-      res = atlsys_1L(NULL, "fgrep 'model name' /proc/cpuinfo", 0, 0);
+      res = atlsys_1L(NULL, "grep -F 'model name' /proc/cpuinfo", 0, 0);
       if (res && res[0] == '\0')
       {
          free(res);
          res = NULL;
       }
       if (!res)
-         res = atlsys_1L(NULL, "fgrep model /proc/cpuinfo", 0, 0);
+         res = atlsys_1L(NULL, "grep -F model /proc/cpuinfo", 0, 0);
       if (res && res[0] == '\0')
       {
          free(res);
@@ -328,7 +328,7 @@ enum MACHTYPE ProbeArch()
             {
                char *rs2;
                rs2 = atlsys_1L(NULL,
-                      "fgrep 'model' /proc/cpuinfo | fgrep -v 'name'", 0, 0);
+                      "grep -F 'model' /proc/cpuinfo | grep -F -v 'name'", 0, 0);
                if (rs2)
                {
                   i = GetLastInt(res);
@@ -388,7 +388,7 @@ enum MACHTYPE ProbeArch()
  *    Add these back if we get machine access and can test
  */
    case AFSPARC:  /* don't know here anymore */
-      res = atlsys_1L(NULL, "fgrep cpu /proc/cpuinfo", 0, 0);
+      res = atlsys_1L(NULL, "grep -F cpu /proc/cpuinfo", 0, 0);
       if (res)
       {
          if (strstr(res, "UltraSparc T2")) mach = SunUST2;
@@ -404,9 +404,9 @@ enum MACHTYPE ProbeArch()
    case AFALPHA:
       #if 0
       res[0] = '\0';
-      ierr = CmndOneLine(NULL, "fgrep 'model name' /proc/cpuinfo", res);
+      ierr = CmndOneLine(NULL, "grep -F 'model name' /proc/cpuinfo", res);
       if (ierr || res[0] == '\0')
-         ierr = CmndOneLine(NULL, "fgrep model /proc/cpuinfo", res);
+         ierr = CmndOneLine(NULL, "grep -F model /proc/cpuinfo", res);
       if (!ierr && res[0] != '\0')
       {
          if (strstr(res, "EV5")) mach = Dec21164;
@@ -416,7 +416,7 @@ enum MACHTYPE ProbeArch()
       #endif
       break;
    case AFS390:
-      res = atlsys_1L(NULL, "cat /proc/cpuinfo | fgrep \"processor \"", 0, 0);
+      res = atlsys_1L(NULL, "cat /proc/cpuinfo | grep -F \"processor \"", 0, 0);
       if (res)
       {
          if (strstr(res, "2094") || strstr(res, "2096")) mach = IbmZ9;
@@ -430,7 +430,7 @@ enum MACHTYPE ProbeArch()
       break;
    default:
 #if 0
-      if (!CmndOneLine(NULL, "fgrep 'cpu family' /proc/cpuinfo", res))
+      if (!CmndOneLine(NULL, "grep -F 'cpu family' /proc/cpuinfo", res))
          if (strstr(res, "PA-RISC 2.0")) mach = HPPA20;
 #else
      ;
@@ -446,7 +446,7 @@ int ProbeNCPU()
    #if 0
    if (mach == Dec21264 || mach == Dec21164 || mach == Dec21064)
    {
-      if ( !CmndOneLine(NULL, "fgrep 'cpus detected' /proc/cpuinfo", res) )
+      if ( !CmndOneLine(NULL, "grep -F 'cpus detected' /proc/cpuinfo", res) )
          ncpu = GetLastInt(res);
    }
    #endif
@@ -524,7 +524,7 @@ int ProbeMhz()
 {
    int mhz=0;
    char *res;
-   res = atlsys_1L(NULL, "fgrep 'cpu MHz' /proc/cpuinfo", 0, 0);
+   res = atlsys_1L(NULL, "grep -F 'cpu MHz' /proc/cpuinfo", 0, 0);
    if (res)
    {
       mhz = GetFirstDouble(res) + 0.5;
@@ -532,7 +532,7 @@ int ProbeMhz()
    }
    if (!mhz)
    {
-      res = atlsys_1L(NULL, "cat /proc/cpuinfo | fgrep clock | fgrep MHz",0,0);
+      res = atlsys_1L(NULL, "cat /proc/cpuinfo | grep -F clock | grep -F MHz",0,0);
       if (res)
       {
          mhz = GetLastLongWithRound(res);
@@ -544,7 +544,7 @@ int ProbeMhz()
  */
    if (!mhz)
    {
-      res = atlsys_1L(NULL, "fgrep 'ClkTck' /proc/cpuinfo", 0, 0);
+      res = atlsys_1L(NULL, "grep -F 'ClkTck' /proc/cpuinfo", 0, 0);
       if (res)
       {
          mhz = GetLastHex(res) / 1000000;
@@ -605,7 +605,7 @@ int ProbeMhz()
  */
    if (!mhz)
    {
-      res = atlsys_1L(NULL, "cat /proc/cpuinfo | fgrep bogomips",0,0);
+      res = atlsys_1L(NULL, "cat /proc/cpuinfo | grep -F bogomips",0,0);
       if (res)
       {
          double result = GetFirstDouble(res);

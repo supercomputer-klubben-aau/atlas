@@ -20,7 +20,7 @@ C_sanity_test:
 	@ echo "BUILDING C TESTERS ONLY (GET F77 FOR MORE COMPLETE TESTING):"
 	cd bin ; $(MAKE) sanity_test
 	@ echo "SCOPING FOR FAILURES IN BIN TESTS:"
-	- fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
+	- grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
 	        bin/sanity.out
 	@ echo "DONE"
 sanity_test :
@@ -31,24 +31,24 @@ sanity_test :
 	@ echo "   "
 	@ echo "DONE BUILDING TESTERS, RUNNING:"
 	@ echo "SCOPING FOR FAILURES IN BIN TESTS:"
-	- fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
+	- grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
 	        bin/sanity.out
 	@ echo "DONE"
 	@ echo "SCOPING FOR FAILURES IN CBLAS TESTS:"
-	- fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
+	- grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
 	        interfaces/blas/C/testing/sanity.out | \
-                fgrep -v PASSED
+                grep -F -v PASSED
 	@ echo "DONE"
 	@ echo "SCOPING FOR FAILURES IN F77BLAS TESTS:"
-	- fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
+	- grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
 	        interfaces/blas/F77/testing/sanity.out | \
-                fgrep -v PASSED
+                grep -F -v PASSED
 	@ echo "DONE"
 C_ptsanity_test:
 	@ echo "BUILDING C TESTERS ONLY (GET F77 FOR MORE COMPLETE TESTING):"
 	cd bin ; $(MAKE) ptsanity_test
 	@ echo "SCOPING FOR FAILURES IN PTBIN TESTS:"
-	- fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
+	- grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
 	        bin/ptsanity.out
 	@ echo "DONE"
 ptsanity_test :
@@ -59,18 +59,18 @@ ptsanity_test :
 	@ echo "   "
 	@ echo "DONE BUILDING TESTERS, RUNNING:"
 	@ echo "SCOPING FOR FAILURES IN PTBIN TESTS:"
-	- fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
+	- grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
 	        bin/ptsanity.out
 	@ echo "DONE"
 	@ echo "SCOPING FOR FAILURES IN PTCBLAS TESTS:"
-	- fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
+	- grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
 	        interfaces/blas/C/testing/ptsanity.out | \
-                fgrep -v PASSED
+                grep -F -v PASSED
 	@ echo "DONE"
 	@ echo "SCOPING FOR FAILURES IN PTF77BLAS TESTS:"
-	- fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
+	- grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
 	        interfaces/blas/F77/testing/ptsanity.out | \
-                fgrep -v PASSED
+                grep -F -v PASSED
 	@ echo "DONE"
 $(BINdir)/AtlasTest : $(SRCdir)/CONFIG/ARCHS/atlas_test1.1.3.tar.bz2
 	cd $(BINdir) ; $(BUNZIP) -c \
@@ -83,8 +83,8 @@ $(BINdir)/LAPACK_TEST : $(SRCdir)/CONFIG/ARCHS/lapack_test.tar.bz2
            $(SRCdir)/CONFIG/ARCHS/lapack_test.tar.bz2 | tar xf -
 scope_lapack_test_pt_pt :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_PT_PT ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_pt_pt: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_PT_PT \
@@ -98,8 +98,8 @@ lapack_test_pt_pt: $(BINdir)/LAPACK_TEST
                 $(BINdir)/LAPACK_TEST/SUMMARY_pt_pt.txt 2>&1
 scope_lapack_test_pt_ab :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_PT_AB ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_pt_ab: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_PT_AB \
@@ -113,8 +113,8 @@ lapack_test_pt_ab: $(BINdir)/LAPACK_TEST
                 $(BINdir)/LAPACK_TEST/SUMMARY_pt_ab.txt 2>&1
 scope_lapack_test_pt_sb :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_PT_SB ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_pt_sb: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_PT_SB \
@@ -128,8 +128,8 @@ lapack_test_pt_sb: $(BINdir)/LAPACK_TEST
                 $(BINdir)/LAPACK_TEST/SUMMARY_pt_sb.txt 2>&1
 scope_lapack_test_pt_fb :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_PT_FB ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_pt_fb: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_PT_FB \
@@ -143,8 +143,8 @@ lapack_test_pt_fb: $(BINdir)/LAPACK_TEST
                 $(BINdir)/LAPACK_TEST/SUMMARY_pt_fb.txt 2>&1
 scope_lapack_test_al_pt :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_AL_PT ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_al_pt: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_AL_PT \
@@ -158,8 +158,8 @@ lapack_test_al_pt: $(BINdir)/LAPACK_TEST
                 $(BINdir)/LAPACK_TEST/SUMMARY_al_pt.txt 2>&1
 scope_lapack_test_al_ab :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_AL_AB ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_al_ab: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_AL_AB \
@@ -173,8 +173,8 @@ lapack_test_al_ab: $(BINdir)/LAPACK_TEST
                 $(BINdir)/LAPACK_TEST/SUMMARY_al_ab.txt 2>&1
 scope_lapack_test_al_sb :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_AL_SB ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_al_sb: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_AL_SB \
@@ -188,8 +188,8 @@ lapack_test_al_sb: $(BINdir)/LAPACK_TEST
                 $(BINdir)/LAPACK_TEST/SUMMARY_al_sb.txt 2>&1
 scope_lapack_test_al_fb :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_AL_FB ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_al_fb: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_AL_FB \
@@ -203,8 +203,8 @@ lapack_test_al_fb: $(BINdir)/LAPACK_TEST
                 $(BINdir)/LAPACK_TEST/SUMMARY_al_fb.txt 2>&1
 scope_lapack_test_sl_pt :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_SL_PT ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_sl_pt: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_SL_PT \
@@ -218,8 +218,8 @@ lapack_test_sl_pt: $(BINdir)/LAPACK_TEST
                 $(BINdir)/LAPACK_TEST/SUMMARY_sl_pt.txt 2>&1
 scope_lapack_test_sl_ab :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_SL_AB ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_sl_ab: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_SL_AB \
@@ -233,8 +233,8 @@ lapack_test_sl_ab: $(BINdir)/LAPACK_TEST
                 $(BINdir)/LAPACK_TEST/SUMMARY_sl_ab.txt 2>&1
 scope_lapack_test_sl_sb :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_SL_SB ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_sl_sb: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_SL_SB \
@@ -248,8 +248,8 @@ lapack_test_sl_sb: $(BINdir)/LAPACK_TEST
                 $(BINdir)/LAPACK_TEST/SUMMARY_sl_sb.txt 2>&1
 scope_lapack_test_sl_fb :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_SL_FB ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_sl_fb: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_SL_FB \
@@ -263,8 +263,8 @@ lapack_test_sl_fb: $(BINdir)/LAPACK_TEST
                 $(BINdir)/LAPACK_TEST/SUMMARY_sl_fb.txt 2>&1
 scope_lapack_test_fl_pt :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_FL_PT ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_fl_pt: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_FL_PT \
@@ -278,8 +278,8 @@ lapack_test_fl_pt: $(BINdir)/LAPACK_TEST
                 $(BINdir)/LAPACK_TEST/SUMMARY_fl_pt.txt 2>&1
 scope_lapack_test_fl_ab :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_FL_AB ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_fl_ab: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_FL_AB \
@@ -293,8 +293,8 @@ lapack_test_fl_ab: $(BINdir)/LAPACK_TEST
                 $(BINdir)/LAPACK_TEST/SUMMARY_fl_ab.txt 2>&1
 scope_lapack_test_fl_sb :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_FL_SB ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_fl_sb: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_FL_SB \
@@ -308,8 +308,8 @@ lapack_test_fl_sb: $(BINdir)/LAPACK_TEST
                 $(BINdir)/LAPACK_TEST/SUMMARY_fl_sb.txt 2>&1
 scope_lapack_test_fl_fb :
 	cd $(BINdir)/LAPACK_TEST/LAOUT_FL_FB ; \
-           fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
-           | fgrep -v "error exits"
+           grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL *.out \
+           | grep -F -v "error exits"
 lapack_test_fl_fb: $(BINdir)/LAPACK_TEST
 	cd $(BINdir)/LAPACK_TEST ; make cleanup
 	- rm -rf $(BINdir)/LAPACK_TEST/LAOUT_FL_FB \
@@ -330,8 +330,8 @@ $(BINdir)/AtlasTest/$(ARCH) : force_build
 	cd $(BINdir)/AtlasTest/$(ARCH) ; ../configure --atldir=$(BLDdir)
 scope_full_results: force_build
 	cd $(BINdir)/AtlasTest/$(ARCH) ;  ../scope.sh
-	- fgrep -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
-                 $(BINdir)/AtlasTest/$(ARCH)/$(ARCH).out | fgrep -v PASSED
+	- grep -F -e fault -e FAULT -e error -e ERROR -e fail -e FAIL \
+                 $(BINdir)/AtlasTest/$(ARCH)/$(ARCH).out | grep -F -v PASSED
 
 full_test : $(BINdir)/AtlasTest
 	$(MAKE) -f Make.top $(BINdir)/AtlasTest/$(ARCH)

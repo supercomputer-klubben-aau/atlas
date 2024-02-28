@@ -352,7 +352,7 @@ IRunC2C :
 IRunFlib :
 	@ - rm config0.out
 	@ $(F77) $(F77FLAGS) -v -o xtst $(SRCdir)/backend/comptestF.f 2>&1 | \
-           fgrep -e '-L' > config0.out
+           grep -F -e '-L' > config0.out
 	@ rm -f xtst
 	@ - cat config0.out
 IRunTestCFLink :

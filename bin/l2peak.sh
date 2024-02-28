@@ -4,7 +4,7 @@
 #
 # Discover the BLDdir
 #
-SRCdir=`fgrep "SRCdir =" Make.inc | sed -e "s/ *SRCdir = *//"`
+SRCdir=`grep -F "SRCdir =" Make.inc | sed -e "s/ *SRCdir = *//"`
 BINdir=$SRCdir/bin
 #
 # First time out-of-cache operations

@@ -10,11 +10,11 @@ int RunISAProbe(char *isaxnam, int verb, char *targ, char *opt)
    int i=1;
    if (targ)
    {
-      frm = "make IRun_%s atlrun=atlas_runX targ=%s MYFLAGS='%s' 2> /dev/null | fgrep SUCCESS";
+      frm = "make IRun_%s atlrun=atlas_runX targ=%s MYFLAGS='%s' 2> /dev/null | grep -F SUCCESS";
       i += strlen(targ);
    }
    else
-      frm = "make IRun_%s MYFLAGS='%s' 2> /dev/null | fgrep SUCCESS";
+      frm = "make IRun_%s MYFLAGS='%s' 2> /dev/null | grep -F SUCCESS";
    i += strlen(frm) + strlen(isaxnam) + strlen(opt);
    cmnd = malloc(sizeof(char)*i);
    assert(cmnd);
