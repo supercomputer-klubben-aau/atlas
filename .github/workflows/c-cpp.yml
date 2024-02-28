@@ -13,10 +13,11 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+
+    # Run configure with high verbosity and valgrind on xconfig
+    - name: configure
     - run: |
         mkdir build
         cd build
-    # Run configure with high verbosity and valgrind on xconfig
-    - name: configure
-      run: ../configure --cripple-atlas-performance -v 2 --valgrind
+        ../configure --cripple-atlas-performance -v 2 --valgrind
     
