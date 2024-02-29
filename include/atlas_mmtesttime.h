@@ -582,7 +582,7 @@ char *MMGetTestString
       i += sprintf(ln+i, "%cMC=\"%s\" %cMCFLAGS=\"%s\" ",
                    ch, mp->comp, ch, mp->cflags);
    }
-   i += sprintf(ln+i, " > /dev/null 2>&1\n");
+   i += sprintf(ln+i, "\n");
    assert(i < len);
    return(ln);
 }

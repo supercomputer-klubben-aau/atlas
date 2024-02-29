@@ -456,7 +456,7 @@ cat $t0 $t1 | $BINdir/tvecratio -c 1 N_${RT} \
 res1f=`./tvrun_lst.sh $tmr $RT "${lst}" $NREP -L _${RT} $ea -F $FRC -O 1`
 
 cd $mydir2
-make all > /dev/null
+make all
 ./tvrun_lst.sh $tmr $RT "${lst}" $NREP -L _${RT} $ea -F $FRC
 res2f=`./tvrun_lst.sh $tmr $RT "${lst}" $NREP -L _${RT} $ea -F $FRC -O 1`
 res2f=$mydir2/$res2f

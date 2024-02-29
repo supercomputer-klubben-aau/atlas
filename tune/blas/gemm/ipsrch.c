@@ -2,6 +2,7 @@
 #include "atlas_genparse.h"
 #include "atlas_mmtesttime.h"
 #include <math.h>
+#include <stdio.h>
 
 static unsigned int FULLSRCH=0;
 void PrintUsage(char *name, int ierr, char *flag)
@@ -188,6 +189,7 @@ void do_ipdek(int verb, char pre, int NEK)
       N = mp->mbB;
    }
    U = (U == 1 || U == 2) ? 4 : U;
+   fprintf(stderr, "U=%d mp->kbmax=%d", U, mp->kbmax);
    if (mp->kbmax)
       assert(U <= mp->kbmax);
    for (i=U; i < N; i += U)

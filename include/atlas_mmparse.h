@@ -1413,6 +1413,9 @@ static ATL_mmnode_t *ReadMMFile(char *file)
    char *ln, *sp;
    int i, j, KeepOn, len;
 
+   char command[512];
+   snprintf(command, sizeof(command), "cat %s", file);
+
    if (!file || !strcmp(file, "stdin"))
       fpin = stdin;
    else
