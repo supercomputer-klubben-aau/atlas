@@ -693,7 +693,7 @@ static void PrepMMForGen(char pre, char *outd, char *nm, ATL_mmnode_t *mb)
          sp = GetMMFilename(cpr, nm, mp);
          mp->rout = NewMergedString(od, sp);  /* want to gen in outd/ */
          sp1 = MMGetGenString(cpr, mp);
-         mp->genstr = NewMergedString(sp1, " > /dev/null 2>&1");
+         mp->genstr = NewMergedString(sp1, " ");
          free(sp1);
          free(mp->rout);
          mp->rout = sp; /* want filename w/o path for GenMake */

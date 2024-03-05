@@ -35,7 +35,7 @@ double getMflop(char pre, int isa, int vlenb, int nacc, int nmul, double mf)
    int i;
    FILE *fpin;
    i = sprintf(ln, "make fpucase isa=%s nacc=%d nmul=%d vlen=%d mf=%f "
-               "typ=\"%s\" > /dev/null 2>&1",
+               "typ=\"%s\"",
                isas[isa], nacc, nmul, vlenb, mf > 0.0?mf:0.0,
                pre=='s'?"-DSREAL=1":"");
    assert(i < LNLEN);

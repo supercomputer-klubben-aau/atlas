@@ -42,8 +42,7 @@ int Sys2File(char *cmnd, char *file)
    int lF, lC, i;
    char *sp, *sys;
    assert(cmnd);
-   if (!file)
-      file = "/dev/null";
+   if (!file) {}
    else if (!strcmp(file, "stdout"))
       file = NULL;
    lC = strlen(cmnd);
@@ -480,7 +479,7 @@ static char *GetGoodGcc()
    if (!INIT)
    {
       FILE *fpin;
-      assert(system("make res/goodgcc.txt > /dev/null 2>&1") == 0);
+      assert(system("make res/goodgcc.txt") == 0);
       fpin = fopen("res/goodgcc.txt", "r");
       assert(fpin);
       assert(fscanf(fpin, "'%[^\']", gcc) == 1);

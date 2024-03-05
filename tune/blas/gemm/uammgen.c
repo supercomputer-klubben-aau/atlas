@@ -881,7 +881,7 @@ void GenAllKerns(char pre, char *outd, ATL_mmnode_t *rb,
                      cp->nu, outd, cp->rout);
       }
       assert(k < len);
-      k += sprintf(sgen+k, " > /dev/null 2>&1");
+      k += sprintf(sgen+k, " ");
       assert(k <= len);
       if ((k=system(sgen)))
       {

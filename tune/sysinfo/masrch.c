@@ -105,7 +105,6 @@ double matime
          i += sprintf(ln+i, " -t 1");
       ln[i++] = '"';
       ln[i] = '\0';
-      sprintf(ln+i, "2>&1 > /dev/null");
       if (system(ln))
       {
          fprintf(stderr, "\nFAILED: '%s'\n\n", ln);

@@ -36,13 +36,6 @@ static int DoGenString(int verb, char *genstr)
       printf("genstr='%s'\n", genstr);
    if (!genstr)
       err=1;
-   else if (verb < 3) /* want to redirect output */
-   {
-      char *ln;
-      ln = NewMergedString(genstr, " > /dev/null 2>&1");
-      err = system(ln);
-      free(ln);
-   }
    else
       err = system(genstr);
    if (err)
@@ -97,7 +90,7 @@ double TimeCPKernel
    }
    if (cp->genstr)
    {
-      sprintf(ln, "%s > /dev/null 2>&1", cp->genstr);
+      sprintf(ln, "%s", cp->genstr);
       if (system(ln))
       {
          fprintf(stderr, "UNABLE TO GENERATE WITH='%s'\n", ln);
@@ -128,8 +121,6 @@ double TimeCPKernel
       i += sprintf(ln+i, " alpha=2 alphan=X");
    if (nrep)
       i += sprintf(ln+i, " FMFS=\"-r %lu\"", nrep);
-   if (verb < 3)
-      i += sprintf(ln+i, " > /dev/null 2>&1");
    if (system(ln))
    {
       fprintf(stderr, "ERROR IN COMMAND: '%s'\n", ln);
@@ -279,7 +270,7 @@ int CPKernelFailsTestMM(char pre, int mb, int nb, int ialp, int ibet,
       else
          i += sprintf(ln+i, " CM2blk=%s", cp->rout);
    }
-   i += sprintf(ln+i, " > /dev/null 2>&1");
+   i += sprintf(ln+i, "");
    assert(i < sz);
    i = system(ln);
    if (i)

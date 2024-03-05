@@ -472,13 +472,6 @@ int MMDoGenString(int verb, char *genstr)
       printf("genstr='%s'\n", genstr);
    if (!genstr)
       err=1;
-   else if (verb < 3) /* want to redirect output */
-   {
-      char *ln;
-      ln = NewMergedString(genstr, " > /dev/null 2>&1");
-      err = system(ln);
-      free(ln);
-   }
    else
       err = system(genstr);
    if (err)
@@ -1061,10 +1054,7 @@ double TimeMMKernel3F
    }
    if (FORCETIME || !FileExists(fnam))
    {
-      if (verb < 3)
-         i += sprintf(ln+i, " > /dev/null 2>&1\n");
-      else
-         i += sprintf(ln+i, "\n");
+      i += sprintf(ln+i, "\n");
       if (verb > 1)
          fprintf(stdout, "SYSTEM: %s", ln);
       if (i=system(ln))
@@ -1432,10 +1422,7 @@ double TimeMMKernel
    }
    if (FORCETIME || !FileExists(fnam))
    {
-      if (verb < 3)
-         i += sprintf(ln+i, " > /dev/null 2>&1\n");
-      else
-         i += sprintf(ln+i, "\n");
+      i += sprintf(ln+i, "\n");
       if (verb > 1)
          fprintf(stdout, "SYSTEM: %s", ln);
       if (system(ln))
